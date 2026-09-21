@@ -948,10 +948,6 @@
     .modal, .share-btn .sdot, .toast{animation:none !important; transition:none !important;}
   }
 
-  .scorer .club-badge.editable{pointer-events:none;}
-  .scorer .wrap .btn, .scorer .wrap .reset-btn{opacity:0.45; cursor:not-allowed; pointer-events:none;}
-  .scorer .fill-input{cursor:default;}
-  .scorer .score-box{cursor:text;}
 
   .modal-lead{margin:0 0 14px; font-size:14px; line-height:1.55;}
   .link-input.full{width:100%; display:block; margin-top:2px;}
@@ -960,6 +956,54 @@
   ul.share-steps li::marker{color:var(--gold);}
   .btn:disabled{opacity:0.5; cursor:not-allowed; transform:none;}
   .connecting .wrap{opacity:0.35; pointer-events:none; transition:opacity 0.3s;}
+
+  .perm-box{margin-top:18px; padding:16px 16px 12px; border:1px solid var(--card-border); border-radius:10px; background:var(--paper-2);}
+  .perm-box .names-label{margin-bottom:11px;}
+  .preset-row{display:flex; flex-wrap:wrap; gap:7px; margin-bottom:14px;}
+  .chip{
+    font-family:'IBM Plex Mono', monospace; font-size:11.5px; font-weight:600;
+    padding:7px 11px; border-radius:999px; cursor:pointer;
+    border:1.5px solid var(--card-border); background:var(--card); color:var(--ink);
+    transition:all 0.15s;
+  }
+  .chip:hover{border-color:var(--gold-dim);}
+  .chip.active{border-color:var(--gold); background:linear-gradient(180deg, rgba(201,162,39,0.24), rgba(201,162,39,0.08)); color:var(--gold-bright);}
+  .perm-item{display:flex; align-items:flex-start; gap:11px; padding:9px 2px; border-top:1px dashed var(--card-border); cursor:pointer;}
+  .perm-item:first-of-type{border-top:none;}
+  .perm-item input{margin-top:3px; width:17px; height:17px; accent-color:var(--gold); flex:none; cursor:pointer;}
+  .perm-item input:disabled{cursor:not-allowed; opacity:0.6;}
+  .perm-item span{display:block; font-size:13.5px; line-height:1.35;}
+  .perm-item small{display:block; color:var(--muted); font-size:12px; margin-top:2px;}
+  #permNote{color:var(--gold-bright); margin-top:10px;}
+  /* bloqueos del invitado según sus permisos */
+  .lk-playoffs #playoffs .bslot, .lk-ko #koBracket .bslot, .lk-ko #koThirdSection .bslot, .lk-teams .club-badge.editable{pointer-events:none;}
+  .lk-config #config .config-card, .lk-config #koConfig .config-card, .lk-config .reset-row{opacity:0.5;}
+  .lk-teams .fill-input, .lk-scores .score-box{cursor:default;}
+  .reset-btn:disabled{opacity:0.45; cursor:not-allowed;}
+
+  .chat-wrap{margin-top:20px; padding-top:16px; border-top:1px dashed var(--card-border);}
+  .chat-log{
+    max-height:220px; overflow-y:auto; overflow-x:hidden;
+    display:flex; flex-direction:column; gap:7px;
+    padding:4px 2px 8px; margin-bottom:10px;
+    scroll-behavior:smooth;
+  }
+  .chat-empty{font-size:12.5px; color:var(--muted); padding:6px 2px;}
+  .chat-msg{max-width:82%; padding:7px 11px; border-radius:12px; font-size:13px; line-height:1.4; word-break:break-word;}
+  .chat-msg .cname{display:block; font-size:11px; font-weight:700; margin-bottom:2px; opacity:0.85;}
+  .chat-msg .ctime{font-size:10px; opacity:0.55; margin-left:6px; font-weight:400;}
+  .chat-msg.other{align-self:flex-start; background:var(--paper-2); border:1px solid var(--card-border); border-bottom-left-radius:3px;}
+  .chat-msg.mine{align-self:flex-end; background:linear-gradient(180deg, rgba(201,162,39,0.28), rgba(201,162,39,0.14)); border:1px solid var(--gold-dim); border-bottom-right-radius:3px; color:var(--ink);}
+  .chat-msg.other .cname{color:var(--gold-bright);}
+  .chat-msg.mine .cname{color:var(--gold-bright);}
+  .chat-form{display:flex; gap:7px; flex-wrap:wrap;}
+  .chat-form #chatTextInput{flex:1; min-width:120px;}
+  .chat-form .btn{flex:none;}
+  .share-btn .cdot{
+    width:7px; height:7px; border-radius:50%; background:#E0554F; flex:none;
+    margin-left:-2px; box-shadow:0 0 0 2px var(--pitch-mid, #10151c);
+  }
+  @media (max-width:560px){ .chat-form #chatNameInput{max-width:92px !important;} }
 </style>
 </head>
 <body>
@@ -992,7 +1036,7 @@
     </button>
     </div>
     <button class="share-btn" type="button" id="shareBtn" data-sync="connecting" aria-haspopup="dialog" title="Compartir torneo">
-      <span class="sico">🔗</span><span class="lbl">Compartir</span><span class="sdot" aria-hidden="true"></span><span class="pc" id="peerCount" hidden></span>
+      <span class="sico">🔗</span><span class="lbl">Compartir</span><span class="sdot" aria-hidden="true"></span><span class="pc" id="peerCount" hidden></span><span class="cdot" id="chatDot" hidden></span>
     </button>
   </div>
 </nav>
@@ -1205,21 +1249,49 @@
         </div>
         <button class="btn btn-small btn-danger" type="button" id="shareStopBtn" style="margin-top:14px">Dejar de compartir</button>
       </div>
+      <div class="perm-box" id="permBox">
+        <p class="names-label">Qué puede hacer quien entra con el link</p>
+        <div class="preset-row" role="group" aria-label="Combinaciones rápidas">
+          <button class="chip" type="button" data-preset="view">👀 Solo mirar</button>
+          <button class="chip" type="button" data-preset="results">🎯 Cargar resultados</button>
+          <button class="chip" type="button" data-preset="liga">🏟️ Solo liga</button>
+          <button class="chip" type="button" data-preset="ko">🏆 Solo eliminatoria</button>
+          <button class="chip" type="button" data-preset="full">🔓 Control total</button>
+        </div>
+        <label class="perm-item"><input type="checkbox" data-perm="scores"><span><b>Resultados de la liga</b><small>Cargar los goles de cada partido</small></span></label>
+        <label class="perm-item"><input type="checkbox" data-perm="playoffs"><span><b>Ganadores de semis y final (liga)</b><small>Elegir quién pasa en semifinales, final y 3º puesto</small></span></label>
+        <label class="perm-item"><input type="checkbox" data-perm="ko"><span><b>Ganadores de la eliminatoria directa</b><small>Elegir quién avanza en cada llave</small></span></label>
+        <label class="perm-item"><input type="checkbox" data-perm="teams"><span><b>Nombres, jugadores y escudos</b><small>Editar equipos y jugadores, cambiar escudos, nombres aleatorios</small></span></label>
+        <label class="perm-item"><input type="checkbox" data-perm="config"><span><b>Configuración y reinicios</b><small>Cambiar cantidad de equipos, sortear y reiniciar. Incluye todo lo anterior.</small></span></label>
+        <p class="modal-note" id="permNote" aria-live="polite"></p>
+        <p class="modal-note">Los cambios de permisos se aplican al instante a todos los conectados.</p>
+      </div>
       <ul class="share-steps">
-        <li>La otra persona puede <b>cargar resultados y elegir ganadores</b> de las llaves. Los equipos, nombres y la configuración solo los cambiás vos.</li>
-        <li>Vos seguís viendo todo en vivo y podés cargar resultados también.</li>
+        <li>Vos siempre podés editar todo y ves lo que carga cada persona en vivo.</li>
         <li><b>Dejá esta página abierta</b> mientras se juega: la conexión pasa por tu pestaña. Si la cerrás, la otra persona se desconecta y se reconecta sola cuando la abras de nuevo.</li>
-        <li>Cualquiera que tenga el link puede cargar resultados: mandalo solo a quien corresponda. “Dejar de compartir” lo invalida.</li>
+        <li>Cualquiera que tenga el link entra con los permisos que elijas acá: mandalo solo a quien corresponda. “Dejar de compartir” lo invalida.</li>
       </ul>
     </div>
     <div id="guestBlock" hidden>
       <ul class="share-steps">
         <li>Estás conectado al torneo de quien te pasó el link.</li>
-        <li>Podés <b>cargar resultados y elegir ganadores</b> de las llaves. Lo que cargues lo ve el organizador al instante.</li>
-        <li>Los equipos y la configuración los maneja el organizador.</li>
+        <li id="guestCan"></li>
+        <li id="guestCannot"></li>
+        <li>Los permisos los define el organizador y pueden cambiar mientras estás conectado.</li>
       </ul>
     </div>
     <p class="peers-line" id="sharePeers"></p>
+    <div class="chat-wrap" id="chatWrap" hidden>
+      <p class="names-label">Chat</p>
+      <div class="chat-log" id="chatLog" aria-live="polite"></div>
+      <form class="chat-form" id="chatForm">
+        <input class="link-input" id="chatNameInput" maxlength="40" placeholder="Tu nombre" autocomplete="off" style="max-width:120px;">
+        <input class="link-input" id="chatTextInput" maxlength="300" placeholder="Escribir un mensaje…" autocomplete="off">
+        <button class="btn btn-primary" type="submit">Enviar</button>
+      </form>
+      <p class="modal-note" id="chatOfflineNote" hidden>Conectate para poder chatear.</p>
+    </div>
+
 
     <details class="plan-b" id="planB">
       <summary>¿No pueden abrir el link? Pasar el torneo con un código</summary>
@@ -1387,7 +1459,7 @@
   //  El torneo se guarda en 4 documentos (liga, liga_res, ko, ko_res) para
   //  que dos personas editando cosas distintas casi nunca se pisen.
   // =====================================================================
-  const SECTION_NAMES = ['liga','liga_res','ko','ko_res'];
+  const SECTION_NAMES = ['liga','liga_res','liga_po','ko','ko_res'];
   const ICON_KEYS = new Set(ANIMALS.map(a=>a.key));
 
   function clone(o){ return JSON.parse(JSON.stringify(o)); }
@@ -1452,7 +1524,8 @@
 
   const SECTIONS = {
     liga:     s => ({ playersPerTeam:s.playersPerTeam, teams:s.teams }),
-    liga_res: s => ({ scores:s.scores, semiWinners:s.semiWinners, finalWinner:s.finalWinner, thirdWinner:s.thirdWinner }),
+    liga_res: s => ({ scores:s.scores }),
+    liga_po:  s => ({ semiWinners:s.semiWinners, finalWinner:s.finalWinner, thirdWinner:s.thirdWinner }),
     ko:       s => ({ playersPerTeam:s.ko.playersPerTeam, teams:s.ko.teams }),
     ko_res:   s => ({ winners:s.ko.winners, thirdWinner:s.ko.thirdWinner })
   };
@@ -1463,9 +1536,11 @@
       return teams ? { playersPerTeam:ppt, teams } : null;
     },
     liga_res(raw){
+      return { scores: cleanScores(raw.scores) };
+    },
+    liga_po(raw){
       const sw = (raw.semiWinners && typeof raw.semiWinners === 'object') ? raw.semiWinners : {};
       return {
-        scores: cleanScores(raw.scores),
         semiWinners: { A: cleanId(sw.A,'e'), B: cleanId(sw.B,'e') },
         finalWinner: cleanId(raw.finalWinner,'e'),
         thirdWinner: cleanId(raw.thirdWinner,'e')
@@ -1489,6 +1564,8 @@
     },
     liga_res(d){
       state.scores = clone(d.scores);
+    },
+    liga_po(d){
       state.semiWinners = clone(d.semiWinners);
       state.finalWinner = d.finalWinner;
       state.thirdWinner = d.thirdWinner;
@@ -1505,7 +1582,6 @@
   };
 
   // ---- modo: organizador (host) o invitado (guest) ----
-  const RESULT_SECTIONS = ['liga_res','ko_res'];
   const PEER_CDNS = [
     'https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js',
     'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js'
@@ -1523,6 +1599,39 @@
     del(k){ try{ localStorage.removeItem(k); }catch(e){} }
   };
 
+  // ---- permisos de quien entra con el link ----
+  const PERM_KEYS = ['scores','playoffs','ko','teams','config'];
+  const PERM_LABEL = {
+    scores:'cargar resultados de la liga',
+    playoffs:'elegir ganadores de semis y final (liga)',
+    ko:'elegir ganadores de la eliminatoria',
+    teams:'editar nombres, jugadores y escudos',
+    config:'cambiar la configuración y reiniciar'
+  };
+  const PRESETS = { view:{}, results:{scores:1,playoffs:1,ko:1}, liga:{scores:1,playoffs:1}, ko:{ko:1}, full:{config:1} };
+  function normPerms(p){
+    const o = {};
+    PERM_KEYS.forEach(k=>{ o[k] = !!(p && p[k]); });
+    if(o.config) PERM_KEYS.forEach(k=>{ o[k] = true; });   // configurar implica todo lo demás
+    return o;
+  }
+  function permLists(P){
+    return { can: PERM_KEYS.filter(k=>P[k]).map(k=>PERM_LABEL[k]), cannot: PERM_KEYS.filter(k=>!P[k]).map(k=>PERM_LABEL[k]) };
+  }
+  function maySend(name, P){
+    if(P.config) return true;
+    if(name === 'liga_res') return P.scores;
+    if(name === 'liga_po') return P.playoffs;
+    if(name === 'ko_res') return P.ko;
+    if(name === 'liga' || name === 'ko') return P.teams;
+    return false;
+  }
+  function loadPerms(){
+    try{ const raw = LS.get('copa_perms'); if(raw) return JSON.parse(raw); }catch(e){}
+    return PRESETS.results;
+  }
+  let perms = normPerms(isGuest ? PRESETS.results : loadPerms());
+
   let peer = null, peerCount = 1, peerRetry = null;
   const conns = new Map();                 // host: invitados conectados
   let hostId = LS.get('copa_room');
@@ -1533,8 +1642,11 @@
   const synced = {}, dirty = {};
 
   function currentCanon(name){ return canon(SECTIONS[name](state)); }
-  function writableSections(){ return isGuest ? RESULT_SECTIONS : SECTION_NAMES; }
-  function liveNote(){ return (!isGuest && conns.size > 0) ? ' Se reinicia también en las pantallas conectadas.' : ''; }
+  function writableSections(){ return isGuest ? SECTION_NAMES.filter(n=>maySend(n, perms)) : SECTION_NAMES; }
+  function liveNote(){
+    if(isGuest) return ' Se reinicia también para el organizador y todos los conectados.';
+    return conns.size > 0 ? ' Se reinicia también en las pantallas conectadas.' : '';
+  }
   function setVal(id, v){
     const el = document.getElementById(id);
     if(el && document.activeElement !== el) el.value = v;
@@ -1545,6 +1657,64 @@
     t.classList.add('show');
     clearTimeout(toastT);
     toastT = setTimeout(()=> t.classList.remove('show'), 3200);
+  }
+
+  // ---- chat ----
+  let chatMessages = [];
+  let chatSeq = 0;
+  let chatUnread = false;
+  function chatId(){ return 'c' + (++chatSeq) + '_' + Date.now() + '_' + Math.random().toString(36).slice(2,6); }
+  function sanitizeChatText(v){ return typeof v === 'string' ? v.replace(/\s+/g,' ').trim().slice(0, 300) : ''; }
+  function sanitizeChatName(v){
+    const n = typeof v === 'string' ? v.replace(/\s+/g,' ').trim().slice(0, 40) : '';
+    return n || (isGuest ? 'Invitado' : 'Organizador');
+  }
+  function myChatName(){ return sanitizeChatName(LS.get('copa_chat_name') || document.getElementById('chatNameInput').value); }
+  function fmtTime(ts){ const d = new Date(ts); return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'); }
+  function renderChatAll(list){
+    chatMessages = list.slice(-60);
+    const log = document.getElementById('chatLog');
+    log.innerHTML = '';
+    if(!chatMessages.length){ log.innerHTML = '<p class="chat-empty">Todavía no hay mensajes. Escribí algo para arrancar.</p>'; return; }
+    chatMessages.forEach(m => appendChatDOM(m, false));
+    log.scrollTop = log.scrollHeight;
+  }
+  function appendChatDOM(m, doScroll){
+    const log = document.getElementById('chatLog');
+    const empty = log.querySelector('.chat-empty');
+    if(empty) empty.remove();
+    const mine = m.sender === (isGuest ? (guestConn && guestConn.connectionId) : 'host');
+    const div = document.createElement('div');
+    div.className = 'chat-msg ' + (mine ? 'mine' : 'other');
+    div.innerHTML = '<span class="cname">' + esc(m.from) + '<span class="ctime">' + fmtTime(m.ts) + '</span></span>' + esc(m.text);
+    log.appendChild(div);
+    if(doScroll !== false){
+      const nearBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 120;
+      if(nearBottom || mine) log.scrollTop = log.scrollHeight;
+    }
+  }
+  function pushChat(m){
+    chatMessages.push(m);
+    if(chatMessages.length > 60) chatMessages.shift();
+    const modalOpen = !document.getElementById('shareModal').hidden;
+    appendChatDOM(m, modalOpen);
+    const mine = m.sender === (isGuest ? (guestConn && guestConn.connectionId) : 'host');
+    if(!mine && !modalOpen){
+      chatUnread = true;
+      document.getElementById('chatDot').hidden = false;
+      const now = Date.now();
+      if(now - lastToast > 4000){ lastToast = now; toast('💬 ' + m.from + ': ' + (m.text.length > 60 ? m.text.slice(0,60) + '…' : m.text)); }
+    }
+  }
+  function sendChatHost(text){
+    text = sanitizeChatText(text); if(!text) return;
+    const m = { id: chatId(), sender:'host', from: myChatName(), text, ts: Date.now() };
+    pushChat(m);
+    broadcast({ t:'chat', msg:m });
+  }
+  function sendChatGuest(text){
+    text = sanitizeChatText(text); if(!text || !(guestConn && guestConn.open)) return;
+    sendTo(guestConn, { t:'chat', from: myChatName(), text });
   }
 
   // ---- carga de PeerJS (conexión directa entre navegadores) ----
@@ -1577,10 +1747,10 @@
   const STATUS_TXT = {
     off:'⚪ Compartir está apagado: solo vos ves este torneo.',
     hostConnecting:'⏳ Creando la sala…',
-    hostLive:'🟢 Compartiendo: mientras esta página esté abierta, quien tenga el link puede cargar resultados y vos ves los cambios al instante.',
+    hostLive:'🟢 Compartiendo: mientras esta página esté abierta, quien tenga el link se conecta y vos ves sus cambios al instante.',
     hostError:'🔴 No se pudo conectar el servicio para compartir. Revisá tu internet; se reintenta solo.',
     guestConnecting:'⏳ Conectando con el torneo…',
-    guestLive:'🟢 Conectado en vivo: cargás resultados y elegís ganadores; el organizador ve los cambios al instante.',
+    guestLive:'🟢 Conectado en vivo con el organizador: lo que cargues lo ve al instante.',
     guestOffline:'🟠 Sin conexión con el organizador. ¿Tiene la página abierta? Reintentando…',
     guestError:'🔴 No se pudo conectar. Revisá tu internet; se reintenta solo.'
   };
@@ -1603,7 +1773,13 @@
     document.getElementById('guestBlock').hidden = !isGuest;
     document.getElementById('codeImportBlock').hidden = isGuest;
     document.getElementById('planB').hidden = isGuest;
+    if(isGuest){
+      const L = permLists(perms);
+      document.getElementById('guestCan').textContent = L.can.length ? 'Podés: ' + L.can.join(', ') + '.' : 'Por ahora solo podés mirar.';
+      document.getElementById('guestCannot').textContent = L.cannot.length ? 'No podés: ' + L.cannot.join(', ') + '.' : '';
+    }
     if(!isGuest){
+      renderPermUI();
       const on = shareState !== 'off';
       document.getElementById('shareOffBlock').hidden = on;
       document.getElementById('shareOnBlock').hidden = !on;
@@ -1614,6 +1790,13 @@
       document.getElementById('shareLinkInput').placeholder = link ? '' : 'Completá la dirección de tu página (abajo)';
       document.getElementById('shareCopyBtn').disabled = !link;
     }
+
+    const chatActive = isGuest ? guestState === 'live' : shareState === 'live';
+    document.getElementById('chatWrap').hidden = !chatActive;
+    document.getElementById('chatOfflineNote').hidden = chatActive;
+    const chatBtn = document.querySelector('#chatForm button');
+    document.getElementById('chatTextInput').disabled = !chatActive;
+    if(chatBtn) chatBtn.disabled = !chatActive;
   }
   function buildLink(){
     if(!hostId) return '';
@@ -1718,7 +1901,7 @@
     conn.on('open', ()=>{
       if(conns.size >= 30){ try{ conn.close(); }catch(e){} return; }
       conns.set(conn.connectionId, conn);
-      sendTo(conn, { t:'snap', secs: allSecs() });
+      sendTo(conn, { t:'snap', secs: allSecs(), perms, chatLog: chatMessages });
       broadcastPeers();
     });
     conn.on('data', (msg)=> onGuestMsg(conn, msg));
@@ -1727,13 +1910,42 @@
     conn.on('error', drop);
   }
   function onGuestMsg(conn, msg){
-    if(!msg || typeof msg !== 'object' || msg.t !== 'sec') return;
-    if(RESULT_SECTIONS.indexOf(msg.name) < 0) return;         // los invitados solo pueden mandar resultados
-    if(receiveSection(msg.name, msg.data)){
-      broadcast({ t:'sec', name:msg.name, data: clone(SECTIONS[msg.name](state)) }, conn);
+    if(!msg || typeof msg !== 'object') return;
+    if(msg.t === 'chat'){
+      const text = sanitizeChatText(msg.text);
+      if(!text) return;
+      const m = { id: chatId(), sender: conn.connectionId, from: sanitizeChatName(msg.from), text, ts: Date.now() };
+      pushChat(m);
+      broadcast({ t:'chat', msg:m });
+      return;
+    }
+    if(msg.t !== 'sec') return;
+    const name = msg.name;
+    if(SECTION_NAMES.indexOf(name) < 0) return;
+    const deny = ()=> sendTo(conn, { t:'sec', name, data: clone(SECTIONS[name](state)) });   // le devuelvo lo real
+    if(!maySend(name, perms)){ deny(); return; }
+    let raw = msg.data;
+    if(!perms.config && (name === 'liga' || name === 'ko')){
+      // con permiso de "nombres y escudos" solo se aceptan esos campos; la cantidad de equipos no se toca
+      const cur = SECTIONS[name](state);
+      const clean = (raw && typeof raw === 'object') ? CLEAN[name](raw) : null;
+      if(!clean || clean.teams.length !== cur.teams.length || clean.playersPerTeam !== cur.playersPerTeam){ deny(); return; }
+      const merged = clone(cur);
+      merged.teams.forEach((t,i)=>{ t.name = clean.teams[i].name; t.players = clean.teams[i].players; t.icon = clean.teams[i].icon; });
+      raw = merged;
+    }
+    if(receiveSection(name, raw)){
+      broadcast({ t:'sec', name, data: clone(SECTIONS[name](state)) }, conn);
       LS.set(STORE_KEY, JSON.stringify(state));
       queueRender(true);
     }
+  }
+  function setHostPerms(p){
+    perms = normPerms(p);
+    LS.set('copa_perms', JSON.stringify(perms));
+    renderPermUI();
+    broadcast({ t:'perm', perms });
+    broadcast({ t:'snap', secs: allSecs(), perms });          // deshace lo que ya no puedan tocar
   }
   function openHostPeer(P, attempt){
     clearTimeout(peerRetry);
@@ -1782,16 +1994,20 @@
     hostId = null;
     LS.del('copa_room'); LS.del('copa_sharing');
     shareState = 'off'; peerCount = 1;
+    chatMessages = []; renderChatAll([]);
     updateShareUI();
   }
 
   // ---- invitado ----
   function onHostMsg(msg){
     if(!msg || typeof msg !== 'object') return;
+    if((msg.t === 'snap' || msg.t === 'perm') && msg.perms && typeof msg.perms === 'object') setGuestPerms(msg.perms);
+    if(msg.t === 'chat' && msg.msg && typeof msg.msg === 'object'){ pushChat(msg.msg); return; }
     if(msg.t === 'snap' && msg.secs && typeof msg.secs === 'object'){
       let changed = false;
       SECTION_NAMES.forEach(n=>{ if(receiveSection(n, msg.secs[n])) changed = true; });
       const wasFirst = firstSnap;
+      if(wasFirst && Array.isArray(msg.chatLog)) renderChatAll(msg.chatLog);
       firstSnap = false;
       document.body.classList.remove('connecting');
       guestState = 'live'; updateShareUI();
@@ -1823,7 +2039,7 @@
   async function joinRoom(){
     guestState = 'connecting';
     document.body.classList.add('connecting');
-    setScorer(true);
+    updateGuestLock();
     updateShareUI();
     SECTION_NAMES.forEach(n=>{ synced[n] = currentCanon(n); dirty[n] = false; });
     let P;
@@ -1840,20 +2056,50 @@
     });
   }
 
-  // ---- modo resultados (invitado) ----
-  let scorer = false;
+  // ---- lo que puede tocar el invitado ----
+  const qa = (sel)=> document.querySelectorAll(sel);
   function applyLock(){
-    if(!scorer) return;
-    document.querySelectorAll('.wrap input, .wrap textarea').forEach(el=>{ if(!el.classList.contains('score-box')) el.readOnly = true; });
-    document.querySelectorAll('.wrap button').forEach(el=>{ el.disabled = true; });
+    if(!isGuest) return;
+    const P = perms;
+    qa('.score-box').forEach(e=>{ e.readOnly = !P.scores; });
+    qa('.team-name-input, .player-input').forEach(e=>{ e.readOnly = !P.teams; });
+    qa('#numTeamsInput,#playersPerTeamInput,#koNumTeamsInput,#koPlayersPerTeamInput,#namesTextarea,#koNamesTextarea').forEach(e=>{ e.readOnly = !P.config; });
+    qa('#applyConfigBtn,#drawBtn,#koApplyConfigBtn,#koDrawBtn,#resetBtn,#koResetBtn,#koResetAllBtn').forEach(e=>{ e.disabled = !P.config; });
+    qa('#randomNamesBtn,#koRandomNamesBtn').forEach(e=>{ e.disabled = !P.teams; });
   }
-  function setScorer(on){
-    scorer = on;
-    document.body.classList.toggle('scorer', on);
+  function updateGuestLock(){
+    const P = perms, cl = document.body.classList;
+    cl.toggle('lk-scores', !P.scores); cl.toggle('lk-playoffs', !P.playoffs); cl.toggle('lk-ko', !P.ko);
+    cl.toggle('lk-teams', !P.teams); cl.toggle('lk-config', !P.config);
+    const L = permLists(P);
     const b = document.getElementById('roBanner');
-    b.hidden = !on;
-    b.textContent = '🎯 Modo resultados: podés cargar resultados y elegir ganadores. Los equipos y la configuración los maneja quien organiza.';
+    b.hidden = false;
+    b.textContent = L.can.length
+      ? '🎯 Podés: ' + L.can.join(' · ') + '.' + (L.cannot.length ? ' Lo demás lo maneja quien organiza.' : '')
+      : '👀 Solo lectura: ves los cambios en vivo, pero no podés editar.';
     applyLock();
+  }
+  function setGuestPerms(p){
+    perms = normPerms(p);
+    SECTION_NAMES.forEach(n=>{ if(!maySend(n, perms)) dirty[n] = false; });   // lo que ya no puede tocar, se descarta
+    updateGuestLock();
+    updateShareUI();
+  }
+  function renderPermUI(){
+    const P = perms;
+    qa('#permBox input[data-perm]').forEach(cb=>{
+      const k = cb.dataset.perm;
+      cb.checked = !!P[k];
+      cb.disabled = P.config && k !== 'config';
+    });
+    qa('#permBox .chip').forEach(ch=>{
+      const pr = normPerms(PRESETS[ch.dataset.preset]);
+      ch.classList.toggle('active', PERM_KEYS.every(k=> pr[k] === P[k]));
+    });
+    const L = permLists(P);
+    document.getElementById('permNote').textContent = L.can.length
+      ? 'Ahora mismo, quien entre con el link puede: ' + L.can.join(', ') + '.'
+      : 'Ahora mismo, quien entre con el link solo puede mirar.';
   }
 
   function initShare(){
@@ -1944,6 +2190,10 @@
     updateShareUI();
     modal.hidden = false;
     document.body.style.overflow = 'hidden';
+    chatUnread = false;
+    document.getElementById('chatDot').hidden = true;
+    const log = document.getElementById('chatLog');
+    if(log) log.scrollTop = log.scrollHeight;
     setTimeout(()=>{
       const target = isGuest ? document.getElementById('shareClose')
         : (shareState === 'off' ? document.getElementById('shareStartBtn') : document.getElementById('shareCopyBtn'));
@@ -1964,6 +2214,12 @@
       if(e.key === 'Escape' && !$('shareModal').hidden && $('confirmModal').hidden) closeShare();
     });
     $('shareStartBtn').addEventListener('click', startHosting);
+    qa('#permBox .chip').forEach(ch=> ch.addEventListener('click', ()=> setHostPerms(PRESETS[ch.dataset.preset])));
+    qa('#permBox input[data-perm]').forEach(cb=> cb.addEventListener('change', ()=>{
+      const p = {};
+      qa('#permBox input[data-perm]').forEach(x=>{ p[x.dataset.perm] = x.checked; });
+      setHostPerms(p);
+    }));
     $('shareStopBtn').addEventListener('click', async ()=>{
       const ok = await askConfirm('Se corta la conexión con quienes estén conectados y el link actual deja de funcionar. Si volvés a compartir, se crea un link nuevo.', 'Sí, dejar de compartir');
       if(ok) stopHosting();
@@ -2006,7 +2262,21 @@
         msg.textContent = 'Ese código no es válido o está incompleto.'; msg.className = 'modal-note warn';
       }
     });
-    new MutationObserver(()=>{ if(scorer) applyLock(); }).observe(document.querySelector('.wrap'), { childList:true, subtree:true });
+    renderChatAll([]);
+    $('chatNameInput').value = LS.get('copa_chat_name') || (isGuest ? '' : 'Organizador');
+    $('chatNameInput').placeholder = isGuest ? 'Tu nombre' : 'Organizador';
+    $('chatNameInput').addEventListener('change', ()=> LS.set('copa_chat_name', sanitizeChatName($('chatNameInput').value)));
+    $('chatForm').addEventListener('submit', (e)=>{
+      e.preventDefault();
+      const ti = $('chatTextInput');
+      const text = ti.value;
+      if(!text.trim()) return;
+      LS.set('copa_chat_name', myChatName());
+      if(isGuest) sendChatGuest(text); else sendChatHost(text);
+      ti.value = '';
+      ti.focus();
+    });
+    new MutationObserver(()=>{ if(isGuest) applyLock(); }).observe(document.querySelector('.wrap'), { childList:true, subtree:true });
     window.addEventListener('pagehide', ()=>{ clearTimeout(syncTimer); flushAll(); });
   }
 
