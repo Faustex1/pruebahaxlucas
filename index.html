@@ -841,7 +841,7 @@
   .share-btn:focus-visible, .modal-x:focus-visible{outline:2px solid var(--gold-bright); outline-offset:2px;}
   .share-btn .sico{font-size:16px; line-height:1;}
   .share-btn .sdot{width:8px; height:8px; border-radius:50%; background:#7d8590; flex:none;}
-  .share-btn[data-sync="live"] .sdot{background:#4CAF7A; box-shadow:0 0 0 3px rgba(76,175,122,0.22);}
+  .share-btn[data-sync="live"] .sdot, .share-btn[data-sync="scorer"] .sdot{background:#4CAF7A; box-shadow:0 0 0 3px rgba(76,175,122,0.22);}
   .share-btn[data-sync="saving"] .sdot{background:var(--gold-bright); animation:sdotPulse 0.9s ease-in-out infinite;}
   .share-btn[data-sync="connecting"] .sdot{animation:sdotPulse 1.2s ease-in-out infinite;}
   .share-btn[data-sync="error"] .sdot{background:var(--danger);}
@@ -947,6 +947,11 @@
   @media (prefers-reduced-motion: reduce){
     .modal, .share-btn .sdot, .toast{animation:none !important; transition:none !important;}
   }
+
+  .scorer .club-badge.editable{pointer-events:none;}
+  .scorer .wrap .btn, .scorer .wrap .reset-btn{opacity:0.45; cursor:not-allowed; pointer-events:none;}
+  .scorer .fill-input{cursor:default;}
+  .scorer .score-box{cursor:text;}
 </style>
 </head>
 <body>
@@ -1184,8 +1189,9 @@
 
     <ol class="share-steps">
       <li>Copiá el link y pasáselo a la otra persona.</li>
-      <li>En el menú de compartir de Claude (sobre este artefacto) dale permiso de <b>“Puede interactuar”</b> o <b>“Puede editar”</b> (<i>Can interact / Can edit</i>). Con “Solo ver” mira los cambios pero no puede tocar nada.</li>
-      <li>Listo: lo que cargue cada uno aparece en la pantalla del otro en unos segundos. Si dos personas cambian exactamente lo mismo a la vez, queda el último cambio.</li>
+      <li>En el menú de compartir de Claude (sobre este artefacto) dale permiso de <b>“Puede interactuar”</b> (<i>Can interact</i>). Así puede <b>cargar resultados y elegir ganadores</b> de las llaves, y vos ves los cambios al instante. Los equipos, nombres y la configuración solo los cambiás vos.</li>
+      <li>Con “Solo ver” la otra persona mira pero no carga nada. Si le das “Puede editar”, puede tocar todo, incluso los equipos.</li>
+      <li>Si dos personas cambian exactamente lo mismo a la vez, queda el último cambio.</li>
     </ol>
     <p class="modal-note">Solo pueden entrar personas con sesión iniciada en Claude y de tu misma organización.</p>
     <p class="peers-line" id="sharePeers"></p>
@@ -1475,11 +1481,14 @@
   };
 
   // ---- estado de la sincronización ----
-  let db = null, liveMode = false, readOnly = false, roomOn = false;
+  let db = null, liveMode = false, readOnly = false, scorer = false, roomOn = false;
   let syncStatus = 'connecting', peerCount = 0;
   const synced = {}, dirty = {}, writing = {}, again = {}, ready = {}, retried = {}, remoteClean = {};
   let syncTimer = null, renderQueued = false, lastToast = 0, toastT = null;
 
+  const RESULT_SECTIONS = ['liga_res','ko_res'];
+  function writableSections(){ return scorer ? RESULT_SECTIONS : SECTION_NAMES; }
+  function liveStatus(){ return scorer ? 'scorer' : 'live'; }
   function currentCanon(name){ return canon(SECTIONS[name](state)); }
   function liveNote(){ return liveMode ? ' Se reinicia para todos los que estén conectados.' : ''; }
   function setVal(id, v){
@@ -1501,6 +1510,7 @@
     saving:'🟡 Guardando cambios…',
     local:'⚪ Modo local: los cambios se guardan solo en este navegador (sin conexión en vivo).',
     readonly:'👀 Modo solo lectura: ves los cambios en vivo, pero no podés editar.',
+    scorer:'🎯 Modo resultados: cargás resultados y elegís ganadores en vivo; los equipos y la configuración los maneja quien organiza.',
     error:'🔴 No se pudo sincronizar. Tus cambios siguen acá; se reintenta al editar de nuevo.'
   };
   function setSyncStatus(s){
@@ -1518,12 +1528,12 @@
       : 'Ahora mismo solo estás vos conectado.';
   }
   function refreshShareUI(){
-    document.getElementById('codeImportBlock').hidden = readOnly;
+    document.getElementById('codeImportBlock').hidden = readOnly || scorer;
   }
 
   // ---- escritura ----
   function markDirty(){
-    SECTION_NAMES.forEach(n=>{ if(currentCanon(n) !== synced[n]) dirty[n] = true; });
+    writableSections().forEach(n=>{ if(currentCanon(n) !== synced[n]) dirty[n] = true; });
   }
   function scheduleSync(){
     if(!liveMode || readOnly) return;
@@ -1534,7 +1544,7 @@
     setSyncStatus('saving');
   }
   function flushAll(){
-    return Promise.all(SECTION_NAMES.filter(n=>dirty[n]).map(flushSection));
+    return Promise.all(writableSections().filter(n=>dirty[n]).map(flushSection));
   }
   function onWriteError(name, e){
     const code = e && e.code;
@@ -1554,7 +1564,7 @@
     toast('No se pudo guardar un cambio (' + (code || 'error') + ').');
   }
   async function flushSection(name){
-    if(!liveMode || readOnly) return;
+    if(!liveMode || readOnly || writableSections().indexOf(name) < 0) return;
     if(!ready[name]){ setTimeout(()=> flushSection(name), 400); return; }
     if(writing[name]){ again[name] = true; return; }
     writing[name] = true;
@@ -1574,7 +1584,7 @@
     }finally{
       writing[name] = false;
     }
-    if(liveMode && !readOnly && syncStatus !== 'error' && !SECTION_NAMES.some(n=>dirty[n] || writing[n])) setSyncStatus('live');
+    if(liveMode && !readOnly && syncStatus !== 'error' && !SECTION_NAMES.some(n=>dirty[n] || writing[n])) setSyncStatus(liveStatus());
   }
 
   // ---- lectura en vivo ----
@@ -1638,16 +1648,37 @@
     });
   }
 
-  // ---- solo lectura ----
-  function applyReadOnly(){
-    document.querySelectorAll('.wrap input, .wrap textarea').forEach(el=>{ el.readOnly = true; });
-    document.querySelectorAll('.wrap button').forEach(el=>{ el.disabled = true; });
+  // ---- solo lectura / modo resultados ----
+  function applyLock(){
+    if(readOnly){
+      document.querySelectorAll('.wrap input, .wrap textarea').forEach(el=>{ el.readOnly = true; });
+      document.querySelectorAll('.wrap button').forEach(el=>{ el.disabled = true; });
+    }else if(scorer){
+      document.querySelectorAll('.wrap input, .wrap textarea').forEach(el=>{ if(!el.classList.contains('score-box')) el.readOnly = true; });
+      document.querySelectorAll('.wrap button').forEach(el=>{ el.disabled = true; });
+    }
+  }
+  function showBanner(){
+    const b = document.getElementById('roBanner');
+    b.hidden = !(readOnly || scorer);
+    b.textContent = readOnly
+      ? '👀 Modo solo lectura: ves los cambios en vivo, pero no podés editar.'
+      : '🎯 Modo resultados: podés cargar resultados y elegir ganadores. Los equipos y la configuración los maneja quien organiza.';
+  }
+  function setScorer(on){
+    if(scorer === on) return;
+    scorer = on;
+    document.body.classList.toggle('scorer', on);
+    showBanner();
+    applyLock();
+    if(!readOnly) setSyncStatus(liveStatus());
+    refreshShareUI();
   }
   function setReadOnly(on){
     if(readOnly === on) return;
     readOnly = on;
     document.body.classList.toggle('readonly', on);
-    document.getElementById('roBanner').hidden = !on;
+    showBanner();
     if(on){
       clearTimeout(syncTimer);
       SECTION_NAMES.forEach(n=>{
@@ -1655,10 +1686,10 @@
         if(remoteClean[n]){ APPLY[n](remoteClean[n]); synced[n] = canon(remoteClean[n]); }
       });
       queueRender(false);
-      applyReadOnly();
+      applyLock();
       setSyncStatus('readonly');
     }else{
-      setSyncStatus('live');
+      setSyncStatus(liveStatus());
     }
     refreshShareUI();
   }
@@ -1678,7 +1709,7 @@
     refreshShareUI();
     try{
       const u = await c.use('user');
-      if(u){ const cw = await u.can('data.write'); if(cw === false) setReadOnly(true); }
+      if(u){ const isAdmin = await u.canEdit(); if(!isAdmin) setScorer(true); }
     }catch(e){}
     try{
       const r = await c.use('room');
@@ -1822,7 +1853,7 @@
         msg.textContent = 'Ese código no es válido o está incompleto.'; msg.className = 'modal-note warn';
       }
     });
-    new MutationObserver(()=>{ if(readOnly) applyReadOnly(); }).observe(document.querySelector('.wrap'), { childList:true, subtree:true });
+    new MutationObserver(()=>{ if(readOnly || scorer) applyLock(); }).observe(document.querySelector('.wrap'), { childList:true, subtree:true });
     window.addEventListener('pagehide', ()=>{ if(liveMode && !readOnly){ clearTimeout(syncTimer); flushAll(); } });
   }
 
