@@ -952,6 +952,14 @@
   .scorer .wrap .btn, .scorer .wrap .reset-btn{opacity:0.45; cursor:not-allowed; pointer-events:none;}
   .scorer .fill-input{cursor:default;}
   .scorer .score-box{cursor:text;}
+
+  .modal-lead{margin:0 0 14px; font-size:14px; line-height:1.55;}
+  .link-input.full{width:100%; display:block; margin-top:2px;}
+  .share-steps{list-style:disc;}
+  ul.share-steps{margin:16px 0 4px; padding-left:20px; font-size:13.5px; line-height:1.55;}
+  ul.share-steps li::marker{color:var(--gold);}
+  .btn:disabled{opacity:0.5; cursor:not-allowed; transform:none;}
+  .connecting .wrap{opacity:0.35; pointer-events:none; transition:opacity 0.3s;}
 </style>
 </head>
 <body>
@@ -1178,22 +1186,39 @@
     <h3 id="shareTitle">Compartir torneo</h3>
     <p class="modal-sync" id="shareSync"></p>
 
-    <div id="shareLinkBlock">
-      <label class="names-label" for="shareLinkInput">Link para invitar</label>
-      <div class="link-row">
-        <input class="link-input" id="shareLinkInput" type="text" readonly spellcheck="false">
-        <button class="btn btn-primary" type="button" id="shareCopyBtn">Copiar link</button>
+    <div id="hostBlock">
+      <div id="shareOffBlock">
+        <p class="modal-lead">Creá un link y pasáselo a quien va a cargar los resultados. No necesita cuenta ni permisos: al abrir el link entra directo.</p>
+        <button class="btn btn-primary" type="button" id="shareStartBtn">🔗 Crear link para compartir</button>
       </div>
-      <p class="modal-note" id="shareCopyMsg" aria-live="polite"></p>
+      <div id="shareOnBlock" hidden>
+        <label class="names-label" for="shareLinkInput">Link para invitar</label>
+        <div class="link-row">
+          <input class="link-input" id="shareLinkInput" type="text" readonly spellcheck="false">
+          <button class="btn btn-primary" type="button" id="shareCopyBtn">Copiar link</button>
+        </div>
+        <p class="modal-note" id="shareCopyMsg" aria-live="polite"></p>
+        <div id="baseUrlBlock" hidden>
+          <label class="names-label" for="baseUrlInput">Dirección donde subiste esta página</label>
+          <input class="link-input full" id="baseUrlInput" type="text" placeholder="https://tusitio.com/copa.html" spellcheck="false" autocomplete="off">
+          <p class="modal-note">Abriste el archivo desde tu compu, así que el link necesita la dirección pública de la página (GitHub Pages, Netlify, tu hosting…). Pegala acá y el link se arma solo.</p>
+        </div>
+        <button class="btn btn-small btn-danger" type="button" id="shareStopBtn" style="margin-top:14px">Dejar de compartir</button>
+      </div>
+      <ul class="share-steps">
+        <li>La otra persona puede <b>cargar resultados y elegir ganadores</b> de las llaves. Los equipos, nombres y la configuración solo los cambiás vos.</li>
+        <li>Vos seguís viendo todo en vivo y podés cargar resultados también.</li>
+        <li><b>Dejá esta página abierta</b> mientras se juega: la conexión pasa por tu pestaña. Si la cerrás, la otra persona se desconecta y se reconecta sola cuando la abras de nuevo.</li>
+        <li>Cualquiera que tenga el link puede cargar resultados: mandalo solo a quien corresponda. “Dejar de compartir” lo invalida.</li>
+      </ul>
     </div>
-
-    <ol class="share-steps">
-      <li>Copiá el link y pasáselo a la otra persona.</li>
-      <li>En el menú de compartir de Claude (sobre este artefacto) dale permiso de <b>“Puede interactuar”</b> (<i>Can interact</i>). Así puede <b>cargar resultados y elegir ganadores</b> de las llaves, y vos ves los cambios al instante. Los equipos, nombres y la configuración solo los cambiás vos.</li>
-      <li>Con “Solo ver” la otra persona mira pero no carga nada. Si le das “Puede editar”, puede tocar todo, incluso los equipos.</li>
-      <li>Si dos personas cambian exactamente lo mismo a la vez, queda el último cambio.</li>
-    </ol>
-    <p class="modal-note">Solo pueden entrar personas con sesión iniciada en Claude y de tu misma organización.</p>
+    <div id="guestBlock" hidden>
+      <ul class="share-steps">
+        <li>Estás conectado al torneo de quien te pasó el link.</li>
+        <li>Podés <b>cargar resultados y elegir ganadores</b> de las llaves. Lo que cargues lo ve el organizador al instante.</li>
+        <li>Los equipos y la configuración los maneja el organizador.</li>
+      </ul>
+    </div>
     <p class="peers-line" id="sharePeers"></p>
 
     <details class="plan-b" id="planB">
@@ -1353,16 +1378,15 @@
     return defaultState();
   }
   function saveState(){
-    try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }catch(e){ /* ignore */ }
+    if(!isGuest){ try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }catch(e){ /* ignore */ } }
     scheduleSync();
   }
 
   // =====================================================================
-  //  EDICIÓN COMPARTIDA EN VIVO
+  //  COMPARTIR EN VIVO (sin servidor propio: conexión directa entre navegadores)
   //  El torneo se guarda en 4 documentos (liga, liga_res, ko, ko_res) para
   //  que dos personas editando cosas distintas casi nunca se pisen.
   // =====================================================================
-  const SHARE_URL = "https://claude.ai/artifact/UKWMbSQVdus4fj5ASinDgb";
   const SECTION_NAMES = ['liga','liga_res','ko','ko_res'];
   const ICON_KEYS = new Set(ANIMALS.map(a=>a.key));
 
@@ -1480,22 +1504,41 @@
     }
   };
 
-  // ---- estado de la sincronización ----
-  let db = null, liveMode = false, readOnly = false, scorer = false, roomOn = false;
-  let syncStatus = 'connecting', peerCount = 0;
-  const synced = {}, dirty = {}, writing = {}, again = {}, ready = {}, retried = {}, remoteClean = {};
-  let syncTimer = null, renderQueued = false, lastToast = 0, toastT = null;
-
+  // ---- modo: organizador (host) o invitado (guest) ----
   const RESULT_SECTIONS = ['liga_res','ko_res'];
-  function writableSections(){ return scorer ? RESULT_SECTIONS : SECTION_NAMES; }
-  function liveStatus(){ return scorer ? 'scorer' : 'live'; }
+  const PEER_CDNS = [
+    'https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js',
+    'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js'
+  ];
+  function parseJoin(){
+    const m = /[#&?]sala=([A-Za-z0-9_-]{6,64})/.exec(location.hash || '');
+    return m ? m[1] : null;
+  }
+  const JOIN_ID = parseJoin();
+  const isGuest = !!JOIN_ID;
+
+  const LS = {
+    get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } },
+    set(k,v){ try{ localStorage.setItem(k,v); }catch(e){} },
+    del(k){ try{ localStorage.removeItem(k); }catch(e){} }
+  };
+
+  let peer = null, peerCount = 1, peerRetry = null;
+  const conns = new Map();                 // host: invitados conectados
+  let hostId = LS.get('copa_room');
+  let shareState = 'off';                  // host: off | connecting | live | error
+  let guestState = 'connecting';           // guest: connecting | live | offline | error
+  let guestConn = null, guestRetry = null, firstSnap = true;
+  let syncTimer = null, renderQueued = false, lastToast = 0, toastT = null;
+  const synced = {}, dirty = {};
+
   function currentCanon(name){ return canon(SECTIONS[name](state)); }
-  function liveNote(){ return liveMode ? ' Se reinicia para todos los que estén conectados.' : ''; }
+  function writableSections(){ return isGuest ? RESULT_SECTIONS : SECTION_NAMES; }
+  function liveNote(){ return (!isGuest && conns.size > 0) ? ' Se reinicia también en las pantallas conectadas.' : ''; }
   function setVal(id, v){
     const el = document.getElementById(id);
     if(el && document.activeElement !== el) el.value = v;
   }
-
   function toast(msg){
     const t = document.getElementById('toast');
     t.textContent = msg;
@@ -1504,90 +1547,124 @@
     toastT = setTimeout(()=> t.classList.remove('show'), 3200);
   }
 
-  const SYNC_MSG = {
-    connecting:'⏳ Conectando…',
-    live:'🟢 Edición en vivo activada: lo que cambie cualquiera se ve en las demás pantallas al toque.',
-    saving:'🟡 Guardando cambios…',
-    local:'⚪ Modo local: los cambios se guardan solo en este navegador (sin conexión en vivo).',
-    readonly:'👀 Modo solo lectura: ves los cambios en vivo, pero no podés editar.',
-    scorer:'🎯 Modo resultados: cargás resultados y elegís ganadores en vivo; los equipos y la configuración los maneja quien organiza.',
-    error:'🔴 No se pudo sincronizar. Tus cambios siguen acá; se reintenta al editar de nuevo.'
-  };
-  function setSyncStatus(s){
-    syncStatus = s;
-    document.getElementById('shareBtn').dataset.sync = s;
-    document.getElementById('shareSync').textContent = SYNC_MSG[s] || '';
+  // ---- carga de PeerJS (conexión directa entre navegadores) ----
+  function loadPeerJs(){
+    if(window.Peer) return Promise.resolve(window.Peer);
+    return new Promise((resolve, reject)=>{
+      let i = 0;
+      const next = ()=>{
+        if(i >= PEER_CDNS.length){ reject(new Error('cdn')); return; }
+        const sc = document.createElement('script');
+        sc.src = PEER_CDNS[i++];
+        sc.async = true;
+        sc.onload = ()=>{ window.Peer ? resolve(window.Peer) : next(); };
+        sc.onerror = ()=>{ sc.remove(); next(); };
+        document.head.appendChild(sc);
+      };
+      next();
+    });
   }
-  function updatePeerUI(){
-    const pc = document.getElementById('peerCount');
-    if(peerCount > 1){ pc.hidden = false; pc.textContent = '👥 ' + peerCount; } else { pc.hidden = true; }
-    const line = document.getElementById('sharePeers');
-    if(!liveMode || !roomOn){ line.textContent = ''; return; }
-    line.textContent = peerCount > 1
-      ? '👥 ' + peerCount + ' personas conectadas ahora (vos incluido).'
-      : 'Ahora mismo solo estás vos conectado.';
-  }
-  function refreshShareUI(){
-    document.getElementById('codeImportBlock').hidden = readOnly || scorer;
+  function newRoomId(){
+    const abc = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    const r = new Uint8Array(10);
+    (window.crypto || window.msCrypto).getRandomValues(r);
+    let s = 'copa27-';
+    for(let i=0;i<r.length;i++) s += abc[r[i] % 36];
+    return s;
   }
 
-  // ---- escritura ----
+  // ---- estado visible (botón + ventana) ----
+  const STATUS_TXT = {
+    off:'⚪ Compartir está apagado: solo vos ves este torneo.',
+    hostConnecting:'⏳ Creando la sala…',
+    hostLive:'🟢 Compartiendo: mientras esta página esté abierta, quien tenga el link puede cargar resultados y vos ves los cambios al instante.',
+    hostError:'🔴 No se pudo conectar el servicio para compartir. Revisá tu internet; se reintenta solo.',
+    guestConnecting:'⏳ Conectando con el torneo…',
+    guestLive:'🟢 Conectado en vivo: cargás resultados y elegís ganadores; el organizador ve los cambios al instante.',
+    guestOffline:'🟠 Sin conexión con el organizador. ¿Tiene la página abierta? Reintentando…',
+    guestError:'🔴 No se pudo conectar. Revisá tu internet; se reintenta solo.'
+  };
+  function currentStatus(){
+    if(isGuest) return { connecting:['connecting',STATUS_TXT.guestConnecting], live:['live',STATUS_TXT.guestLive], offline:['error',STATUS_TXT.guestOffline], error:['error',STATUS_TXT.guestError] }[guestState];
+    return { off:['local',STATUS_TXT.off], connecting:['connecting',STATUS_TXT.hostConnecting], live:['live',STATUS_TXT.hostLive], error:['error',STATUS_TXT.hostError] }[shareState];
+  }
+  function updateShareUI(){
+    const [dot, txt] = currentStatus();
+    const btn = document.getElementById('shareBtn');
+    btn.dataset.sync = dot;
+    document.getElementById('shareSync').textContent = txt;
+    const pc = document.getElementById('peerCount');
+    if(peerCount > 1){ pc.hidden = false; pc.textContent = '👥 ' + peerCount; } else pc.hidden = true;
+    const line = document.getElementById('sharePeers');
+    const active = isGuest ? guestState === 'live' : shareState === 'live';
+    line.textContent = !active ? '' : (peerCount > 1 ? '👥 ' + peerCount + ' dispositivos conectados ahora (contándote).' : 'Todavía no se conectó nadie más.');
+
+    document.getElementById('hostBlock').hidden = isGuest;
+    document.getElementById('guestBlock').hidden = !isGuest;
+    document.getElementById('codeImportBlock').hidden = isGuest;
+    document.getElementById('planB').hidden = isGuest;
+    if(!isGuest){
+      const on = shareState !== 'off';
+      document.getElementById('shareOffBlock').hidden = on;
+      document.getElementById('shareOnBlock').hidden = !on;
+      const fileMode = !/^https?:$/.test(location.protocol);
+      document.getElementById('baseUrlBlock').hidden = !fileMode;
+      const link = buildLink();
+      document.getElementById('shareLinkInput').value = link || '';
+      document.getElementById('shareLinkInput').placeholder = link ? '' : 'Completá la dirección de tu página (abajo)';
+      document.getElementById('shareCopyBtn').disabled = !link;
+    }
+  }
+  function buildLink(){
+    if(!hostId) return '';
+    let base = '';
+    if(/^https?:$/.test(location.protocol)) base = location.href.split('#')[0].split('?')[0];
+    else base = (LS.get('copa_base') || '').trim().split('#')[0];
+    return base ? base + '#sala=' + hostId : '';
+  }
+
+  // ---- marcar / enviar cambios ----
   function markDirty(){
     writableSections().forEach(n=>{ if(currentCanon(n) !== synced[n]) dirty[n] = true; });
   }
   function scheduleSync(){
-    if(!liveMode || readOnly) return;
     markDirty();
-    if(!SECTION_NAMES.some(n=>dirty[n])) return;
+    if(!writableSections().some(n=>dirty[n])) return;
     clearTimeout(syncTimer);
-    syncTimer = setTimeout(flushAll, 350);
-    setSyncStatus('saving');
+    syncTimer = setTimeout(flushAll, isGuest ? 250 : 200);
+  }
+  function sendTo(conn, msg){ try{ if(conn && conn.open) conn.send(msg); }catch(e){} }
+  function broadcast(msg, exceptConn){
+    conns.forEach(c=>{ if(c !== exceptConn) sendTo(c, msg); });
   }
   function flushAll(){
-    return Promise.all(writableSections().filter(n=>dirty[n]).map(flushSection));
-  }
-  function onWriteError(name, e){
-    const code = e && e.code;
-    if(code === 'invalid_argument' || code === 'revoked' || code === 'not_granted'){
+    writableSections().forEach(name=>{
+      if(!dirty[name]) return;
+      const data = clone(SECTIONS[name](state));
+      const c = canon(data);
+      if(c === synced[name]){ dirty[name] = false; return; }
+      if(isGuest){
+        if(!(guestConn && guestConn.open)) return;          // queda pendiente hasta reconectar
+        sendTo(guestConn, { t:'sec', name, data });
+      }else{
+        broadcast({ t:'sec', name, data });
+      }
+      synced[name] = c;
       dirty[name] = false;
-      setReadOnly(true);
-      return;
-    }
-    if(code === 'unavailable' && !retried[name]){
-      retried[name] = true;
-      setTimeout(()=> flushSection(name), 1500 + Math.random()*1500);
-      return;
-    }
-    retried[name] = false;
-    dirty[name] = false;
-    setSyncStatus('error');
-    toast('No se pudo guardar un cambio (' + (code || 'error') + ').');
-  }
-  async function flushSection(name){
-    if(!liveMode || readOnly || writableSections().indexOf(name) < 0) return;
-    if(!ready[name]){ setTimeout(()=> flushSection(name), 400); return; }
-    if(writing[name]){ again[name] = true; return; }
-    writing[name] = true;
-    try{
-      do{
-        again[name] = false;
-        const data = clone(SECTIONS[name](state));
-        const c = canon(data);
-        if(c === synced[name]){ dirty[name] = false; continue; }
-        await db.doc('torneo/' + name).set(data);
-        synced[name] = c;
-        retried[name] = false;
-        dirty[name] = currentCanon(name) !== c;
-      }while(again[name] || dirty[name]);
-    }catch(e){
-      onWriteError(name, e);
-    }finally{
-      writing[name] = false;
-    }
-    if(liveMode && !readOnly && syncStatus !== 'error' && !SECTION_NAMES.some(n=>dirty[n] || writing[n])) setSyncStatus(liveStatus());
+    });
   }
 
-  // ---- lectura en vivo ----
+  // ---- recibir cambios ----
+  function receiveSection(name, raw){
+    const clean = (raw && typeof raw === 'object') ? CLEAN[name](raw) : null;
+    if(!clean) return false;
+    const c = canon(clean);
+    if(c === synced[name]) return false;
+    if(dirty[name]) return false;                            // tus cambios sin enviar van primero
+    APPLY[name](clean);
+    synced[name] = c;
+    return true;
+  }
   function focusToken(){
     const el = document.activeElement;
     if(!el || !el.classList || !el.closest) return null;
@@ -1618,107 +1695,171 @@
       const tok = focusToken();
       renderAll();
       restoreFocus(tok);
-      try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }catch(e){}
+      if(!isGuest) LS.set(STORE_KEY, JSON.stringify(state));
       if(fromRemote){
         const now = Date.now();
-        if(now - lastToast > 6000){ lastToast = now; toast('🔄 Se actualizó con cambios de otra persona'); }
+        if(now - lastToast > 6000){ lastToast = now; toast(isGuest ? '🔄 Se actualizó el torneo' : '🔄 Se cargó un cambio desde otro dispositivo'); }
       }
     });
   }
-  function subscribeAll(){
-    SECTION_NAMES.forEach(name=>{
-      db.doc('torneo/' + name).onSnapshot(snap=>{
-        const first = !ready[name];
-        ready[name] = true;
-        if(!snap.exists) return;
-        const raw = snap.data();
-        const clean = raw ? CLEAN[name](raw) : null;
-        if(!clean) return;
-        remoteClean[name] = clean;
-        const c = canon(clean);
-        if(c === synced[name]) return;
-        if(dirty[name] || writing[name]) return;   // tus cambios sin enviar van primero
-        APPLY[name](clean);
-        synced[name] = c;
-        queueRender(!first);
-      }, err=>{
-        ready[name] = true;
-        if(err && err.code === 'revoked') setReadOnly(true); else setSyncStatus('error');
-      });
+
+  // ---- organizador ----
+  function allSecs(){
+    const o = {};
+    SECTION_NAMES.forEach(n=>{ o[n] = clone(SECTIONS[n](state)); });
+    return o;
+  }
+  function broadcastPeers(){
+    peerCount = conns.size + 1;
+    broadcast({ t:'peers', n:peerCount });
+    updateShareUI();
+  }
+  function onGuestConn(conn){
+    conn.on('open', ()=>{
+      if(conns.size >= 30){ try{ conn.close(); }catch(e){} return; }
+      conns.set(conn.connectionId, conn);
+      sendTo(conn, { t:'snap', secs: allSecs() });
+      broadcastPeers();
+    });
+    conn.on('data', (msg)=> onGuestMsg(conn, msg));
+    const drop = ()=>{ if(conns.delete(conn.connectionId)) broadcastPeers(); };
+    conn.on('close', drop);
+    conn.on('error', drop);
+  }
+  function onGuestMsg(conn, msg){
+    if(!msg || typeof msg !== 'object' || msg.t !== 'sec') return;
+    if(RESULT_SECTIONS.indexOf(msg.name) < 0) return;         // los invitados solo pueden mandar resultados
+    if(receiveSection(msg.name, msg.data)){
+      broadcast({ t:'sec', name:msg.name, data: clone(SECTIONS[msg.name](state)) }, conn);
+      LS.set(STORE_KEY, JSON.stringify(state));
+      queueRender(true);
+    }
+  }
+  function openHostPeer(P, attempt){
+    clearTimeout(peerRetry);
+    shareState = 'connecting'; updateShareUI();
+    let p;
+    try{ p = new P(hostId); }catch(e){ shareState = 'error'; updateShareUI(); return; }
+    peer = p;
+    p.on('open', ()=>{ shareState = 'live'; peerCount = conns.size + 1; updateShareUI(); });
+    p.on('connection', onGuestConn);
+    p.on('disconnected', ()=>{
+      if(peer !== p || p.destroyed) return;
+      shareState = 'connecting'; updateShareUI();
+      setTimeout(()=>{ try{ if(peer === p && !p.destroyed) p.reconnect(); }catch(e){} }, 2000);
+    });
+    p.on('error', (err)=>{
+      if(peer !== p) return;
+      const type = err && err.type;
+      if(type === 'unavailable-id'){
+        try{ p.destroy(); }catch(e){}
+        if(attempt < 4){ peerRetry = setTimeout(()=> openHostPeer(P, attempt+1), 2500); }
+        else{ hostId = newRoomId(); LS.set('copa_room', hostId); openHostPeer(P, 0); }
+        return;
+      }
+      shareState = 'error'; updateShareUI();
+      if(type === 'network' || type === 'server-error' || type === 'socket-error' || type === 'socket-closed'){
+        peerRetry = setTimeout(()=>{ try{ p.destroy(); }catch(e){} openHostPeer(P, 0); }, 5000);
+      }
+    });
+  }
+  async function startHosting(){
+    if(isGuest) return;
+    shareState = 'connecting'; updateShareUI();
+    let P;
+    try{ P = await loadPeerJs(); }
+    catch(e){ shareState = 'error'; updateShareUI(); toast('No se pudo cargar el servicio de conexión. Revisá tu internet.'); return; }
+    if(!hostId){ hostId = newRoomId(); LS.set('copa_room', hostId); }
+    LS.set('copa_sharing', '1');
+    SECTION_NAMES.forEach(n=>{ synced[n] = currentCanon(n); dirty[n] = false; });
+    openHostPeer(P, 0);
+  }
+  function stopHosting(){
+    clearTimeout(peerRetry);
+    conns.forEach(c=>{ try{ c.close(); }catch(e){} });
+    conns.clear();
+    if(peer){ try{ peer.destroy(); }catch(e){} peer = null; }
+    hostId = null;
+    LS.del('copa_room'); LS.del('copa_sharing');
+    shareState = 'off'; peerCount = 1;
+    updateShareUI();
+  }
+
+  // ---- invitado ----
+  function onHostMsg(msg){
+    if(!msg || typeof msg !== 'object') return;
+    if(msg.t === 'snap' && msg.secs && typeof msg.secs === 'object'){
+      let changed = false;
+      SECTION_NAMES.forEach(n=>{ if(receiveSection(n, msg.secs[n])) changed = true; });
+      const wasFirst = firstSnap;
+      firstSnap = false;
+      document.body.classList.remove('connecting');
+      guestState = 'live'; updateShareUI();
+      if(changed || wasFirst) queueRender(!wasFirst);
+      scheduleSync();                                         // manda lo que haya quedado pendiente
+    }else if(msg.t === 'sec' && SECTION_NAMES.indexOf(msg.name) >= 0){
+      if(receiveSection(msg.name, msg.data)) queueRender(true);
+    }else if(msg.t === 'peers'){
+      peerCount = Math.max(1, Math.min(99, parseInt(msg.n,10) || 1));
+      updateShareUI();
+    }
+  }
+  function guestReconnectSoon(){
+    clearTimeout(guestRetry);
+    guestRetry = setTimeout(connectToHost, 3000);
+  }
+  function connectToHost(){
+    if(!peer || peer.destroyed || !peer.open) return;
+    if(guestConn){ try{ guestConn.close(); }catch(e){} }
+    const c = peer.connect(JOIN_ID, { reliable:true, serialization:'json' });
+    guestConn = c;
+    let opened = false;
+    const failTimer = setTimeout(()=>{ if(!opened && guestConn === c){ try{ c.close(); }catch(e){} guestState = 'offline'; updateShareUI(); guestReconnectSoon(); } }, 12000);
+    c.on('open', ()=>{ opened = true; clearTimeout(failTimer); });
+    c.on('data', onHostMsg);
+    c.on('close', ()=>{ clearTimeout(failTimer); if(guestConn !== c) return; guestState = 'offline'; peerCount = 1; updateShareUI(); guestReconnectSoon(); });
+    c.on('error', ()=>{ clearTimeout(failTimer); if(guestConn !== c) return; guestState = 'offline'; updateShareUI(); guestReconnectSoon(); });
+  }
+  async function joinRoom(){
+    guestState = 'connecting';
+    document.body.classList.add('connecting');
+    setScorer(true);
+    updateShareUI();
+    SECTION_NAMES.forEach(n=>{ synced[n] = currentCanon(n); dirty[n] = false; });
+    let P;
+    try{ P = await loadPeerJs(); }
+    catch(e){ guestState = 'error'; document.body.classList.remove('connecting'); updateShareUI(); return; }
+    const p = new P();
+    peer = p;
+    p.on('open', connectToHost);
+    p.on('disconnected', ()=>{ try{ if(!p.destroyed) p.reconnect(); }catch(e){} });
+    p.on('error', (err)=>{
+      const type = err && err.type;
+      if(type === 'peer-unavailable'){ guestState = 'offline'; updateShareUI(); guestReconnectSoon(); }
+      else{ guestState = 'error'; updateShareUI(); if(p.open) guestReconnectSoon(); }
     });
   }
 
-  // ---- solo lectura / modo resultados ----
+  // ---- modo resultados (invitado) ----
+  let scorer = false;
   function applyLock(){
-    if(readOnly){
-      document.querySelectorAll('.wrap input, .wrap textarea').forEach(el=>{ el.readOnly = true; });
-      document.querySelectorAll('.wrap button').forEach(el=>{ el.disabled = true; });
-    }else if(scorer){
-      document.querySelectorAll('.wrap input, .wrap textarea').forEach(el=>{ if(!el.classList.contains('score-box')) el.readOnly = true; });
-      document.querySelectorAll('.wrap button').forEach(el=>{ el.disabled = true; });
-    }
-  }
-  function showBanner(){
-    const b = document.getElementById('roBanner');
-    b.hidden = !(readOnly || scorer);
-    b.textContent = readOnly
-      ? '👀 Modo solo lectura: ves los cambios en vivo, pero no podés editar.'
-      : '🎯 Modo resultados: podés cargar resultados y elegir ganadores. Los equipos y la configuración los maneja quien organiza.';
+    if(!scorer) return;
+    document.querySelectorAll('.wrap input, .wrap textarea').forEach(el=>{ if(!el.classList.contains('score-box')) el.readOnly = true; });
+    document.querySelectorAll('.wrap button').forEach(el=>{ el.disabled = true; });
   }
   function setScorer(on){
-    if(scorer === on) return;
     scorer = on;
     document.body.classList.toggle('scorer', on);
-    showBanner();
+    const b = document.getElementById('roBanner');
+    b.hidden = !on;
+    b.textContent = '🎯 Modo resultados: podés cargar resultados y elegir ganadores. Los equipos y la configuración los maneja quien organiza.';
     applyLock();
-    if(!readOnly) setSyncStatus(liveStatus());
-    refreshShareUI();
-  }
-  function setReadOnly(on){
-    if(readOnly === on) return;
-    readOnly = on;
-    document.body.classList.toggle('readonly', on);
-    showBanner();
-    if(on){
-      clearTimeout(syncTimer);
-      SECTION_NAMES.forEach(n=>{
-        dirty[n] = false;
-        if(remoteClean[n]){ APPLY[n](remoteClean[n]); synced[n] = canon(remoteClean[n]); }
-      });
-      queueRender(false);
-      applyLock();
-      setSyncStatus('readonly');
-    }else{
-      setSyncStatus(liveStatus());
-    }
-    refreshShareUI();
   }
 
-  async function initSync(){
-    const c = window.claude;
-    if(!c || typeof c.use !== 'function'){ setSyncStatus('local'); return; }
-    setSyncStatus('connecting');
-    let d = null;
-    try{ d = await c.use('db'); }catch(e){ d = null; }
-    if(!d){ setSyncStatus('local'); return; }
-    db = d;
-    liveMode = true;
-    SECTION_NAMES.forEach(n=>{ synced[n] = currentCanon(n); dirty[n] = false; });
-    subscribeAll();
-    setSyncStatus('live');
-    refreshShareUI();
-    try{
-      const u = await c.use('user');
-      if(u){ const isAdmin = await u.canEdit(); if(!isAdmin) setScorer(true); }
-    }catch(e){}
-    try{
-      const r = await c.use('room');
-      if(r){
-        roomOn = true;
-        r.onPeers(ch=>{ peerCount = ch.peers.filter(p=>p.kind === 'viewer').length; updatePeerUI(); });
-        updatePeerUI();
-      }
-    }catch(e){}
+  function initShare(){
+    if(isGuest){ joinRoom(); return; }
+    updateShareUI();
+    if(LS.get('copa_sharing') === '1' && hostId) startHosting();
   }
 
   // ---- copiar / código de torneo ----
@@ -1796,18 +1937,18 @@
   function openShare(){
     const modal = document.getElementById('shareModal');
     shareLastFocus = document.activeElement;
-    const has = !!SHARE_URL;
-    document.getElementById('shareLinkBlock').hidden = !has;
-    document.getElementById('shareLinkInput').value = SHARE_URL;
     document.getElementById('shareCopyMsg').textContent = '';
     document.getElementById('shareCopyMsg').className = 'modal-note';
     document.getElementById('codeMsg').textContent = '';
-    setSyncStatus(syncStatus);
-    updatePeerUI();
-    refreshShareUI();
+    document.getElementById('baseUrlInput').value = LS.get('copa_base') || '';
+    updateShareUI();
     modal.hidden = false;
     document.body.style.overflow = 'hidden';
-    setTimeout(()=>{ (has ? document.getElementById('shareCopyBtn') : document.getElementById('shareClose')).focus(); }, 30);
+    setTimeout(()=>{
+      const target = isGuest ? document.getElementById('shareClose')
+        : (shareState === 'off' ? document.getElementById('shareStartBtn') : document.getElementById('shareCopyBtn'));
+      if(target) target.focus();
+    }, 30);
   }
   function closeShare(){
     document.getElementById('shareModal').hidden = true;
@@ -1815,50 +1956,62 @@
     if(shareLastFocus && shareLastFocus.focus) shareLastFocus.focus();
   }
   function wireShareUI(){
-    document.getElementById('shareBtn').addEventListener('click', openShare);
-    document.getElementById('shareClose').addEventListener('click', closeShare);
-    document.getElementById('shareModal').addEventListener('click', (e)=>{ if(e.target.id === 'shareModal') closeShare(); });
+    const $ = (id)=> document.getElementById(id);
+    $('shareBtn').addEventListener('click', openShare);
+    $('shareClose').addEventListener('click', closeShare);
+    $('shareModal').addEventListener('click', (e)=>{ if(e.target.id === 'shareModal') closeShare(); });
     document.addEventListener('keydown', (e)=>{
-      if(e.key === 'Escape' && !document.getElementById('shareModal').hidden && document.getElementById('confirmModal').hidden) closeShare();
+      if(e.key === 'Escape' && !$('shareModal').hidden && $('confirmModal').hidden) closeShare();
     });
-    document.getElementById('shareCopyBtn').addEventListener('click', async ()=>{
-      const msg = document.getElementById('shareCopyMsg');
-      const ok = await copyText(SHARE_URL, document.getElementById('shareLinkInput'));
+    $('shareStartBtn').addEventListener('click', startHosting);
+    $('shareStopBtn').addEventListener('click', async ()=>{
+      const ok = await askConfirm('Se corta la conexión con quienes estén conectados y el link actual deja de funcionar. Si volvés a compartir, se crea un link nuevo.', 'Sí, dejar de compartir');
+      if(ok) stopHosting();
+    });
+    $('baseUrlInput').addEventListener('input', ()=>{
+      LS.set('copa_base', $('baseUrlInput').value.trim());
+      updateShareUI();
+    });
+    $('shareCopyBtn').addEventListener('click', async ()=>{
+      const msg = $('shareCopyMsg');
+      const link = buildLink();
+      if(!link) return;
+      const ok = await copyText(link, $('shareLinkInput'));
       msg.textContent = ok ? '✓ Link copiado' : 'No pude copiarlo solo: tocá el link, seleccionalo y copialo (Ctrl+C).';
       msg.className = 'modal-note ' + (ok ? 'ok' : 'warn');
     });
-    document.getElementById('codeCopyBtn').addEventListener('click', async ()=>{
-      const msg = document.getElementById('codeMsg');
+    $('codeCopyBtn').addEventListener('click', async ()=>{
+      const msg = $('codeMsg');
       const code = exportCode();
       const ok = await copyText(code);
       if(ok){ msg.textContent = '✓ Código copiado'; msg.className = 'modal-note ok'; }
       else{
-        const ta = document.getElementById('codeInput');
+        const ta = $('codeInput');
         ta.value = code; ta.focus(); ta.select();
         msg.textContent = 'No pude copiarlo solo: quedó en el cuadro de abajo, seleccionalo y copialo.';
         msg.className = 'modal-note warn';
       }
     });
-    document.getElementById('codeImportBtn').addEventListener('click', async ()=>{
-      const msg = document.getElementById('codeMsg');
-      const val = document.getElementById('codeInput').value;
+    $('codeImportBtn').addEventListener('click', async ()=>{
+      const msg = $('codeMsg');
+      const val = $('codeInput').value;
       if(!val.trim()){ msg.textContent = 'Pegá primero un código.'; msg.className = 'modal-note warn'; return; }
       const okc = await askConfirm('Esto reemplaza toda la liga y la eliminatoria actuales por las del código.' + liveNote(), 'Sí, importar');
       if(!okc) return;
       try{
         importCode(val);
-        document.getElementById('codeInput').value = '';
+        $('codeInput').value = '';
         msg.textContent = '✓ Torneo importado'; msg.className = 'modal-note ok';
       }catch(e){
         msg.textContent = 'Ese código no es válido o está incompleto.'; msg.className = 'modal-note warn';
       }
     });
-    new MutationObserver(()=>{ if(readOnly || scorer) applyLock(); }).observe(document.querySelector('.wrap'), { childList:true, subtree:true });
-    window.addEventListener('pagehide', ()=>{ if(liveMode && !readOnly){ clearTimeout(syncTimer); flushAll(); } });
+    new MutationObserver(()=>{ if(scorer) applyLock(); }).observe(document.querySelector('.wrap'), { childList:true, subtree:true });
+    window.addEventListener('pagehide', ()=>{ clearTimeout(syncTimer); flushAll(); });
   }
 
 
-  let state = loadState();
+  let state = isGuest ? defaultState() : loadState();
   if(state.view !== 'ko') state.view = 'group';
   state.teams.forEach((t,i)=>{
     if(!t.icon || !ANIMAL_LABEL[t.icon]) t.icon = ANIMALS[i % ANIMALS.length].key;
@@ -2756,7 +2909,7 @@
   renderAll();
   applyView();
   wireShareUI();
-  initSync();
+  initShare();
 })();
 </script>
 
