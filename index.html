@@ -347,6 +347,8 @@
   .reg-switch input:checked + .reg-switch-track{background:rgba(201,162,39,0.25); border-color:var(--gold);}
   .reg-switch input:checked + .reg-switch-track .reg-switch-thumb{transform:translateX(20px); background:var(--gold);}
   .reg-copy-btn{padding:4px 9px; font-size:11px; margin-left:8px;}
+  .reg-eye-btn{padding:4px 8px; font-size:12px; margin-left:8px;}
+  .reg-pass-text{letter-spacing:0.12em;}
   table.standings td.reg-pass{font-family:'IBM Plex Mono', monospace; white-space:nowrap;}
   .reg-guest-screen{
     position:fixed; inset:0; z-index:9999;
@@ -3181,6 +3183,7 @@
       if(changed) el.value = existing.join('\n');
     });
   }
+  const regRevealed = new Set();
   function renderRegistro(){
     const body = document.getElementById('regTableBody');
     if(!body) return;
@@ -3188,9 +3191,15 @@
     document.getElementById('regEmptyNote').hidden = list.length > 0;
     body.innerHTML = list.map(u=>{
       const estado = u.anotado ? '✅ Anotado' : '— Sin anotar';
+      const shown = regRevealed.has(u.id);
+      const passText = shown ? esc(u.contrasena) : '•'.repeat(Math.max(6, u.contrasena.length));
       return '<tr>'
         + '<td class="name">' + esc(u.nombre) + '</td>'
-        + '<td class="reg-pass">' + esc(u.contrasena) + '<button class="btn btn-small reg-copy-btn" type="button" data-copy="' + esc(u.contrasena) + '">Copiar</button></td>'
+        + '<td class="reg-pass">'
+          + '<span class="reg-pass-text">' + passText + '</span>'
+          + '<button class="btn btn-small reg-eye-btn" type="button" data-id="' + u.id + '" title="' + (shown ? 'Ocultar' : 'Mostrar') + '">' + (shown ? '🙈' : '👁️') + '</button>'
+          + '<button class="btn btn-small reg-copy-btn" type="button" data-copy="' + esc(u.contrasena) + '">Copiar</button>'
+        + '</td>'
         + '<td>' + estado + '</td>'
         + '<td><button class="btn btn-small btn-danger reg-del-btn" type="button" data-id="' + u.id + '">Borrar</button></td>'
         + '</tr>';
@@ -3231,6 +3240,13 @@
   document.getElementById('regTableBody').addEventListener('click', async (e)=>{
     const cp = e.target.closest('.reg-copy-btn');
     if(cp){ await copyText(cp.dataset.copy); toast('Contraseña copiada'); return; }
+    const eye = e.target.closest('.reg-eye-btn');
+    if(eye){
+      const id = eye.dataset.id;
+      if(regRevealed.has(id)) regRevealed.delete(id); else regRevealed.add(id);
+      renderRegistro();
+      return;
+    }
     const del = e.target.closest('.reg-del-btn');
     if(del){
       if(!(await askConfirm('¿Borrar este usuario de inscripciones?', 'Sí, borrar'))) return;
