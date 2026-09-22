@@ -1268,6 +1268,16 @@
 
       <hr class="divider-line">
 
+      <label class="names-label" for="regLinkInput">Link de inscripción (para tirar en el chat de Kick)</label>
+      <div class="link-row">
+        <input class="link-input" id="regLinkInput" type="text" readonly spellcheck="false">
+        <button class="btn btn-primary" type="button" id="regLinkCopyBtn">Copiar link</button>
+      </div>
+      <p class="modal-note" id="regLinkMsg" aria-live="polite"></p>
+      <p class="rules-line" id="regStatusNote">⏳ Preparando la sala de inscripciones…</p>
+
+      <hr class="divider-line">
+
       <label class="names-label">Crear usuario</label>
       <div class="config-row">
         <div class="config-field">
@@ -1716,6 +1726,12 @@
   let syncTimer = null, renderQueued = false, lastToast = 0, toastT = null;
   const synced = {}, dirty = {};
 
+  // ---- sala de inscripciones (independiente de "Compartir") ----
+  let regPeer = null, regPeerState = 'off', regPeerRetry = null;
+  const regConns = new Map();
+  let regRoomId = LS.get('copa_reg_room');
+  if(!isGuest && !regRoomId){ regRoomId = newRoomId(); LS.set('copa_reg_room', regRoomId); }
+
   function currentCanon(name){ return canon(SECTIONS[name](state)); }
   function writableSections(){ return isGuest ? SECTION_NAMES.filter(n=>maySend(n, perms)) : SECTION_NAMES; }
   function liveNote(){
@@ -1816,11 +1832,11 @@
     return base ? base + '#sala=' + hostId : '';
   }
   function buildRegLink(){
-    if(!hostId) return '';
+    if(!regRoomId) return '';
     let dir;
     if(/^https?:$/.test(location.protocol)) dir = location.href.split('#')[0].split('?')[0].replace(/[^/]*$/, '');
     else dir = (LS.get('copa_base') || '').trim().split('#')[0].replace(/[^/]*$/, '');
-    return dir ? dir + 'inscripcion.html?sala=' + hostId : '';
+    return dir ? dir + 'inscripcion.html?sala=' + regRoomId : '';
   }
 
   // ---- marcar / enviar cambios ----
@@ -2017,6 +2033,61 @@
     LS.del('copa_room'); LS.del('copa_sharing');
     shareState = 'off'; peerCount = 1;
     updateShareUI();
+  }
+
+  // ---- sala de inscripciones ----
+  function updateRegUI(){
+    const note = document.getElementById('regStatusNote');
+    if(!note) return;
+    const map = {
+      off: '⚪ La sala de inscripciones está apagada.',
+      connecting: '⏳ Preparando la sala de inscripciones…',
+      live: '🟢 Activa — mientras esta página esté abierta, el link de arriba funciona.',
+      error: '🔴 No se pudo conectar el servicio para inscripciones. Se reintenta solo.'
+    };
+    note.textContent = map[regPeerState] || '';
+  }
+  function onRegGuestConn(conn){
+    regConns.set(conn.peer, conn);
+    conn.on('data', (msg)=> onGuestMsg(conn, msg));
+    conn.on('close', ()=> regConns.delete(conn.peer));
+    conn.on('error', ()=> regConns.delete(conn.peer));
+  }
+  function openRegPeer(P, attempt){
+    clearTimeout(regPeerRetry);
+    regPeerState = 'connecting'; updateRegUI();
+    let p;
+    try{ p = new P(regRoomId); }catch(e){ regPeerState = 'error'; updateRegUI(); return; }
+    regPeer = p;
+    p.on('open', ()=>{ regPeerState = 'live'; updateRegUI(); });
+    p.on('connection', onRegGuestConn);
+    p.on('disconnected', ()=>{
+      if(regPeer !== p || p.destroyed) return;
+      regPeerState = 'connecting'; updateRegUI();
+      setTimeout(()=>{ try{ if(regPeer === p && !p.destroyed) p.reconnect(); }catch(e){} }, 2000);
+    });
+    p.on('error', (err)=>{
+      if(regPeer !== p) return;
+      const type = err && err.type;
+      if(type === 'unavailable-id'){
+        try{ p.destroy(); }catch(e){}
+        if(attempt < 4){ regPeerRetry = setTimeout(()=> openRegPeer(P, attempt+1), 2500); }
+        else{ regRoomId = newRoomId(); LS.set('copa_reg_room', regRoomId); openRegPeer(P, 0); }
+        return;
+      }
+      regPeerState = 'error'; updateRegUI();
+      if(type === 'network' || type === 'server-error' || type === 'socket-error' || type === 'socket-closed'){
+        regPeerRetry = setTimeout(()=>{ try{ p.destroy(); }catch(e){} openRegPeer(P, 0); }, 5000);
+      }
+    });
+  }
+  async function startRegPeer(){
+    if(isGuest) return;
+    regPeerState = 'connecting'; updateRegUI();
+    let P;
+    try{ P = await loadPeerJs(); }
+    catch(e){ regPeerState = 'error'; updateRegUI(); return; }
+    openRegPeer(P, 0);
   }
 
   // ---- invitado ----
@@ -3112,6 +3183,9 @@
     const chk = document.getElementById('regOpenToggle');
     chk.checked = !!state.registro.open;
     document.getElementById('regOpenLabel').textContent = state.registro.open ? 'Inscripciones abiertas' : 'Inscripciones cerradas';
+    const link = buildRegLink();
+    const li = document.getElementById('regLinkInput');
+    if(li && document.activeElement !== li) li.value = link || '';
     if(state.view === 'registro') updateHero();
   }
   document.getElementById('regOpenToggle').addEventListener('change', (e)=>{
@@ -3148,6 +3222,11 @@
       saveState();
       renderRegistro();
     }
+  });
+  document.getElementById('regLinkCopyBtn').addEventListener('click', async ()=>{
+    const input = document.getElementById('regLinkInput');
+    const ok = await copyText(input.value, input);
+    document.getElementById('regLinkMsg').textContent = ok ? '✅ Copiado. Pegalo en el chat de Kick.' : 'No se pudo copiar — seleccioná el texto a mano.';
   });
   // ---------- master render ----------
   function renderAll(){
@@ -3260,6 +3339,7 @@
   applyView();
   wireShareUI();
   initShare();
+  startRegPeer();
 })();
 </script>
 
