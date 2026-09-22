@@ -3166,6 +3166,21 @@
     tab.addEventListener('click', ()=> switchView(tab.dataset.view));
   });
   // ---------- inscripciones (panel del organizador) ----------
+  function syncNamesPools(){
+    const names = state.registro.usuarios.filter(u=> u.anotado).map(u=> u.nombre);
+    if(!names.length) return;
+    ['namesTextarea', 'koNamesTextarea'].forEach(id=>{
+      const el = document.getElementById(id);
+      if(!el || document.activeElement === el) return; // no tocar mientras se escribe ahí
+      const existing = el.value.split('\n').map(s=> s.trim()).filter(Boolean);
+      const seen = new Set(existing.map(s=> s.toLowerCase()));
+      let changed = false;
+      names.forEach(n=>{
+        if(!seen.has(n.toLowerCase())){ existing.push(n); seen.add(n.toLowerCase()); changed = true; }
+      });
+      if(changed) el.value = existing.join('\n');
+    });
+  }
   function renderRegistro(){
     const body = document.getElementById('regTableBody');
     if(!body) return;
@@ -3186,6 +3201,7 @@
     const link = buildRegLink();
     const li = document.getElementById('regLinkInput');
     if(li && document.activeElement !== li) li.value = link || '';
+    syncNamesPools();
     if(state.view === 'registro') updateHero();
   }
   document.getElementById('regOpenToggle').addEventListener('change', (e)=>{
