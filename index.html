@@ -1391,6 +1391,7 @@
         <label class="perm-item"><input type="checkbox" data-perm="playoffs"><span><b>Ganadores de semis y final (liga)</b><small>Elegir quién pasa en semifinales, final y 3º puesto</small></span></label>
         <label class="perm-item"><input type="checkbox" data-perm="ko"><span><b>Ganadores de la eliminatoria directa</b><small>Elegir quién avanza en cada llave</small></span></label>
         <label class="perm-item"><input type="checkbox" data-perm="teams"><span><b>Nombres, jugadores y escudos</b><small>Editar equipos y jugadores, cambiar escudos, nombres aleatorios</small></span></label>
+        <label class="perm-item"><input type="checkbox" data-perm="registro"><span><b>Inscripciones</b><small>Ver y administrar usuarios y contraseñas, abrir/cerrar inscripciones</small></span></label>
         <label class="perm-item"><input type="checkbox" data-perm="config"><span><b>Configuración y reinicios</b><small>Cambiar cantidad de equipos, sortear y reiniciar. Incluye todo lo anterior.</small></span></label>
         <p class="modal-note" id="permNote" aria-live="polite"></p>
         <p class="modal-note">Los cambios de permisos se aplican al instante a todos los conectados.</p>
@@ -1604,7 +1605,7 @@
   //  El torneo se guarda en 4 documentos (liga, liga_res, ko, ko_res) para
   //  que dos personas editando cosas distintas casi nunca se pisen.
   // =====================================================================
-  const SECTION_NAMES = ['liga','liga_res','liga_po','ko','ko_res'];
+  const SECTION_NAMES = ['liga','liga_res','liga_po','ko','ko_res','registro'];
   const ICON_KEYS = new Set(ANIMALS.map(a=>a.key));
 
   function clone(o){ return JSON.parse(JSON.stringify(o)); }
@@ -1666,13 +1667,31 @@
     return out;
   }
   function cleanPpt(v){ return Math.max(1, Math.min(8, parseInt(v,10) || 1)); }
+  function cleanRegUsuarios(arr){
+    if(!Array.isArray(arr)) return [];
+    const out = [];
+    arr.slice(0, 500).forEach(u=>{
+      if(!u || typeof u !== 'object') return;
+      const nombre = cleanStr(u.nombre, 40).trim();
+      const contrasena = cleanStr(u.contrasena, 30).trim();
+      if(!nombre || !contrasena) return;
+      out.push({
+        id: (typeof u.id === 'string' && u.id.length <= 20) ? u.id : newRegId(),
+        nombre, contrasena,
+        anotado: !!u.anotado,
+        anotadoEn: (typeof u.anotadoEn === 'number') ? u.anotadoEn : null
+      });
+    });
+    return out;
+  }
 
   const SECTIONS = {
     liga:     s => ({ playersPerTeam:s.playersPerTeam, teams:s.teams }),
     liga_res: s => ({ scores:s.scores }),
     liga_po:  s => ({ semiWinners:s.semiWinners, finalWinner:s.finalWinner, thirdWinner:s.thirdWinner }),
     ko:       s => ({ playersPerTeam:s.ko.playersPerTeam, teams:s.ko.teams }),
-    ko_res:   s => ({ winners:s.ko.winners, thirdWinner:s.ko.thirdWinner })
+    ko_res:   s => ({ winners:s.ko.winners, thirdWinner:s.ko.thirdWinner }),
+    registro: s => ({ open:!!s.registro.open, usuarios:s.registro.usuarios })
   };
   const CLEAN = {
     liga(raw){
@@ -1698,6 +1717,9 @@
     },
     ko_res(raw){
       return { winners: cleanWinners(raw.winners), thirdWinner: cleanId(raw.thirdWinner,'k') };
+    },
+    registro(raw){
+      return { open: !!raw.open, usuarios: cleanRegUsuarios(raw.usuarios) };
     }
   };
   const APPLY = {
@@ -1723,6 +1745,10 @@
     ko_res(d){
       state.ko.winners = clone(d.winners);
       state.ko.thirdWinner = d.thirdWinner;
+    },
+    registro(d){
+      state.registro.open = !!d.open;
+      state.registro.usuarios = clone(d.usuarios);
     }
   };
 
@@ -1752,12 +1778,13 @@
   };
 
   // ---- permisos de quien entra con el link ----
-  const PERM_KEYS = ['scores','playoffs','ko','teams','config'];
+  const PERM_KEYS = ['scores','playoffs','ko','teams','registro','config'];
   const PERM_LABEL = {
     scores:'cargar resultados de la liga',
     playoffs:'elegir ganadores de semis y final (liga)',
     ko:'elegir ganadores de la eliminatoria',
     teams:'editar nombres, jugadores y escudos',
+    registro:'administrar inscripciones',
     config:'cambiar la configuración y reiniciar'
   };
   const PRESETS = { view:{}, results:{scores:1,playoffs:1,ko:1}, liga:{scores:1,playoffs:1}, ko:{ko:1}, full:{config:1} };
@@ -1776,6 +1803,7 @@
     if(name === 'liga_po') return P.playoffs;
     if(name === 'ko_res') return P.ko;
     if(name === 'liga' || name === 'ko') return P.teams;
+    if(name === 'registro') return P.registro;
     return false;
   }
   function loadPerms(){
@@ -1931,6 +1959,7 @@
         if(!(guestConn && guestConn.open)) return;          // queda pendiente hasta reconectar
         sendTo(guestConn, { t:'sec', name, data });
       }else{
+        if(name === 'registro' && !perms.registro){ synced[name] = c; dirty[name] = false; return; } // sin permiso, no se comparte
         broadcast({ t:'sec', name, data });
       }
       synced[name] = c;
@@ -1990,7 +2019,10 @@
   // ---- organizador ----
   function allSecs(){
     const o = {};
-    SECTION_NAMES.forEach(n=>{ o[n] = clone(SECTIONS[n](state)); });
+    SECTION_NAMES.forEach(n=>{
+      if(n === 'registro' && !perms.registro) return; // sin permiso, no viaja ni en el snap inicial
+      o[n] = clone(SECTIONS[n](state));
+    });
     return o;
   }
   function broadcastPeers(){
@@ -2038,7 +2070,11 @@
     const name = msg.name;
     if(SECTION_NAMES.indexOf(name) < 0) return;
     const deny = ()=> sendTo(conn, { t:'sec', name, data: clone(SECTIONS[name](state)) });   // le devuelvo lo real
-    if(!maySend(name, perms)){ deny(); return; }
+    if(!maySend(name, perms)){
+      if(name === 'registro') return;   // sin permiso, ni siquiera se le confirma con datos reales
+      deny();
+      return;
+    }
     let raw = msg.data;
     if(!perms.config && (name === 'liga' || name === 'ko')){
       // con permiso de "nombres y escudos" solo se aceptan esos campos; la cantidad de equipos no se toca
@@ -2255,6 +2291,11 @@
   function setGuestPerms(p){
     perms = normPerms(p);
     SECTION_NAMES.forEach(n=>{ if(!maySend(n, perms)) dirty[n] = false; });   // lo que ya no puede tocar, se descarta
+    const tab = document.getElementById('regTabBtn');
+    if(tab){
+      tab.hidden = !perms.registro;
+      if(!perms.registro && state.view === 'registro'){ state.view = 'group'; applyView(); }
+    }
     updateGuestLock();
     updateShareUI();
   }
@@ -2321,6 +2362,10 @@
     const payload = JSON.parse(fromB64(str.slice(6)));
     const parts = {};
     SECTION_NAMES.forEach(n=>{
+      if(n === 'registro' && !(payload && payload.registro)){
+        parts.registro = { open:false, usuarios:[] };   // códigos viejos no tienen inscripciones
+        return;
+      }
       const c = payload && payload[n] && typeof payload[n] === 'object' ? CLEAN[n](payload[n]) : null;
       if(!c) throw new Error('datos');
       parts[n] = c;
@@ -3516,8 +3561,8 @@
     renderAll();
   });
 
-  document.getElementById('regTabBtn').hidden = isGuest;
-  if(isGuest && state.view === 'registro') state.view = 'group';
+  document.getElementById('regTabBtn').hidden = isGuest && !perms.registro;
+  if(isGuest && !perms.registro && state.view === 'registro') state.view = 'group';
 
   renderAll();
   applyView();
