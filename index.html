@@ -347,6 +347,8 @@
   .reg-switch input:checked + .reg-switch-track{background:rgba(201,162,39,0.25); border-color:var(--gold);}
   .reg-switch input:checked + .reg-switch-track .reg-switch-thumb{transform:translateX(20px); background:var(--gold);}
   .reg-copy-btn{padding:4px 9px; font-size:11px; margin-left:8px;}
+  .obs-link-btn{opacity:0.6; font-size:11.5px; padding:5px 10px;}
+  .obs-link-btn:hover{opacity:1;}
   .reg-eye-btn{padding:4px 8px; font-size:12px; margin-left:8px;}
   .reg-pass-text{letter-spacing:0.12em;}
 
@@ -1171,7 +1173,10 @@
   <section id="standings">
     <div class="sec-head">
       <div class="sec-head-left"><span class="sec-num">04</span><h2>Tabla de posiciones</h2></div>
-      <p id="standingsSub">0 / 6 jugados</p>
+      <div class="sec-head-right">
+        <button class="btn btn-small obs-link-btn" id="obsLigaBtn" type="button" title="Copiar link de este cuadro para usar como fuente de navegador en OBS">📺 Link OBS</button>
+        <p id="standingsSub">0 / 6 jugados</p>
+      </div>
     </div>
     <div class="table-wrap">
       <table class="standings">
@@ -1276,7 +1281,10 @@
   <section id="koBracketSection">
     <div class="sec-head">
       <div class="sec-head-left"><span class="sec-num">03</span><h2>Llaves</h2></div>
-      <p id="koSub">Cuartos de Final</p>
+      <div class="sec-head-right">
+        <button class="btn btn-small obs-link-btn" id="obsKoBtn" type="button" title="Copiar link de este cuadro para usar como fuente de navegador en OBS">📺 Link OBS</button>
+        <p id="koSub">Cuartos de Final</p>
+      </div>
     </div>
     <div class="bracket-scroll">
       <div class="bracket" id="koBracket"></div>
@@ -1933,6 +1941,13 @@
     if(/^https?:$/.test(location.protocol)) dir = location.href.split('#')[0].split('?')[0].replace(/[^/]*$/, '');
     else dir = (LS.get('copa_base') || '').trim().split('#')[0].replace(/[^/]*$/, '');
     return dir ? dir + 'inscripcion.html?sala=' + regRoomId : '';
+  }
+  function buildObsLink(vista){
+    if(!hostId) return '';
+    let dir;
+    if(/^https?:$/.test(location.protocol)) dir = location.href.split('#')[0].split('?')[0].replace(/[^/]*$/, '');
+    else dir = (LS.get('copa_base') || '').trim().split('#')[0].replace(/[^/]*$/, '');
+    return dir ? dir + 'obs.html?sala=' + hostId + '&vista=' + vista : '';
   }
 
   // ---- marcar / enviar cambios ----
@@ -3385,6 +3400,14 @@
     const ok = await copyText(input.value, input);
     document.getElementById('regLinkMsg').textContent = ok ? '✅ Copiado. Pegalo en el chat de Kick.' : 'No se pudo copiar — seleccioná el texto a mano.';
   });
+  async function copyObsLink(vista){
+    const link = buildObsLink(vista);
+    if(!link){ toast('Activá «Compartir» arriba primero para generar el link.'); return; }
+    const ok = await copyText(link);
+    toast(ok ? '✅ Link OBS copiado' : 'No se pudo copiar');
+  }
+  document.getElementById('obsLigaBtn').addEventListener('click', ()=> copyObsLink('liga'));
+  document.getElementById('obsKoBtn').addEventListener('click', ()=> copyObsLink('ko'));
   // ---------- chat del equipo (solo entre quienes tienen el link de Compartir) ----------
   let chatOpen = false, chatUnread = 0;
   const chatMessages = [];
@@ -3563,6 +3586,8 @@
 
   document.getElementById('regTabBtn').hidden = isGuest && !perms.registro;
   if(isGuest && !perms.registro && state.view === 'registro') state.view = 'group';
+  document.getElementById('obsLigaBtn').hidden = isGuest;
+  document.getElementById('obsKoBtn').hidden = isGuest;
 
   renderAll();
   applyView();
