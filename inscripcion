@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Inscripción — Copa LucasPazo27</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --pitch-dark:#0B0D10;
+    --line:#EDE6D6;
+    --gold:#C9A227;
+    --gold-bright:#E4C465;
+    --ink:#0B241B;
+    --paper:#F5F1E6;
+    --paper-2:#ECE5D3;
+    --card:#FFFFFF;
+    --card-border:#DDD4BC;
+    --muted:#5C6B62;
+    --danger:#A6432E;
+    --shadow: 0 1px 0 rgba(11,36,27,0.06);
+    --card-glow: none;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#0A0C0F; --paper-2:#12161B; --card:#15191F; --card-border:#282E36;
+      --ink:#EDE8DC; --muted:#9C968A; --shadow: 0 8px 24px rgba(0,0,0,0.35);
+      --card-glow: inset 0 1px 0 rgba(255,255,255,0.04);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#0A0C0F; --paper-2:#12161B; --card:#15191F; --card-border:#282E36;
+    --ink:#EDE8DC; --muted:#9C968A; --shadow: 0 8px 24px rgba(0,0,0,0.35);
+    --card-glow: inset 0 1px 0 rgba(255,255,255,0.04);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0; height:100%;}
+  body{
+    background:
+      radial-gradient(700px 420px at 12% 0%, rgba(59,95,99,0.16), transparent 60%),
+      radial-gradient(600px 400px at 88% 8%, rgba(201,162,39,0.08), transparent 60%),
+      var(--paper);
+    color:var(--ink);
+    font-family:'IBM Plex Sans', sans-serif;
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+    min-height:100%;
+    display:flex; align-items:center; justify-content:center;
+    padding:24px;
+    padding-top:calc(24px + env(safe-area-inset-top, 0px));
+    padding-bottom:calc(24px + env(safe-area-inset-bottom, 0px));
+  }
+  .card{
+    width:100%; max-width:420px;
+    background:var(--card); border:1px solid var(--card-border); border-radius:16px;
+    padding:34px 28px; box-shadow:var(--shadow), var(--card-glow); text-align:center;
+  }
+  .kicker{
+    display:inline-flex; align-items:center; gap:8px;
+    font-family:'IBM Plex Mono', monospace; font-size:12px; letter-spacing:0.06em;
+    color:var(--gold); margin:0 0 18px; padding:6px 12px;
+    border:1px solid rgba(201,162,39,0.4); border-radius:999px; background:rgba(201,162,39,0.08);
+  }
+  .kicker::before{content:"⚽"; font-size:12px;}
+  h1{
+    font-family:'Bebas Neue', sans-serif; font-weight:400;
+    font-size:clamp(34px, 8vw, 46px); margin:0 0 6px; letter-spacing:0.01em; color:var(--ink);
+  }
+  .lead{color:var(--muted); font-size:14px; margin:0 0 22px; line-height:1.5;}
+  input[type="text"]{
+    width:100%; padding:14px 16px; border-radius:10px; border:1px solid var(--card-border);
+    background:var(--paper-2); color:var(--ink); font-size:16px;
+    font-family:'IBM Plex Mono', monospace; text-align:center; letter-spacing:0.05em;
+  }
+  input[type="text"]:focus{outline:2px solid var(--gold); outline-offset:1px;}
+  input[type="text"]:disabled{opacity:0.6;}
+  button{
+    width:100%; margin-top:14px; padding:14px 16px; border-radius:10px; border:1px solid var(--gold);
+    background:var(--gold); color:var(--pitch-dark); font-family:'IBM Plex Sans', sans-serif;
+    font-weight:700; font-size:15px; cursor:pointer; transition:transform 0.15s, opacity 0.15s;
+  }
+  button:hover:not(:disabled){transform:translateY(-1px);}
+  button:disabled{opacity:0.45; cursor:not-allowed; transform:none;}
+  .status{min-height:20px; margin-top:16px; font-size:13.5px; color:var(--muted);}
+  .status.ok{color:#3E8E5A; font-weight:600;}
+  .status.warn{color:var(--danger); font-weight:600;}
+  .foot{margin-top:22px; font-size:11.5px; color:var(--muted); opacity:0.7;}
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="kicker">INSCRIPCIÓN</div>
+  <h1>Copa LucasPazo27</h1>
+  <p class="lead" id="lead">Poné la contraseña que te dieron para anotarte en el torneo.</p>
+  <input type="text" id="passInput" placeholder="Tu contraseña" autocomplete="off" autocapitalize="off" spellcheck="false" disabled>
+  <button type="button" id="submitBtn" disabled>Conectando…</button>
+  <p class="status" id="status" aria-live="polite"></p>
+  <p class="foot">Dejá esta página abierta hasta ver la confirmación.</p>
+</div>
+
+<script>
+(function(){
+  const PEER_CDNS = [
+    'https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js',
+    'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js'
+  ];
+  function loadPeerJs(){
+    if(window.Peer) return Promise.resolve(window.Peer);
+    return new Promise((resolve, reject)=>{
+      let i = 0;
+      const next = ()=>{
+        if(i >= PEER_CDNS.length){ reject(new Error('cdn')); return; }
+        const sc = document.createElement('script');
+        sc.src = PEER_CDNS[i++];
+        sc.async = true;
+        sc.onload = ()=>{ window.Peer ? resolve(window.Peer) : next(); };
+        sc.onerror = ()=>{ sc.remove(); next(); };
+        document.head.appendChild(sc);
+      };
+      next();
+    });
+  }
+
+  function getSala(){
+    try{ return new URLSearchParams(location.search).get('sala'); }catch(e){ return null; }
+  }
+  const SALA_ID = getSala();
+
+  const passInput = document.getElementById('passInput');
+  const submitBtn = document.getElementById('submitBtn');
+  const statusEl = document.getElementById('status');
+  const leadEl = document.getElementById('lead');
+
+  function setStatus(text, cls){
+    statusEl.textContent = text || '';
+    statusEl.className = 'status' + (cls ? ' ' + cls : '');
+  }
+
+  if(!SALA_ID){
+    leadEl.textContent = 'Este link no es válido.';
+    setStatus('Pedile al organizador que te pase el link correcto.', 'warn');
+    return;
+  }
+
+  let peer = null, conn = null, reconnectTimer = null, reqTimer = null, confirmed = false;
+
+  function setConnState(state){
+    if(confirmed) return;
+    if(state === 'connecting'){
+      passInput.disabled = true; submitBtn.disabled = true;
+      submitBtn.textContent = 'Conectando…';
+    }else if(state === 'live'){
+      passInput.disabled = false; submitBtn.disabled = false;
+      submitBtn.textContent = 'Anotarme';
+    }else if(state === 'offline'){
+      passInput.disabled = true; submitBtn.disabled = true;
+      submitBtn.textContent = 'Conectando…';
+      setStatus('Sin conexión con el organizador. ¿Tiene la página abierta? Reintentando…', 'warn');
+    }else if(state === 'error'){
+      passInput.disabled = true; submitBtn.disabled = true;
+      submitBtn.textContent = 'Conectando…';
+      setStatus('No se pudo conectar. Reintentando…', 'warn');
+    }
+  }
+
+  function scheduleReconnect(){
+    clearTimeout(reconnectTimer);
+    reconnectTimer = setTimeout(connectToHost, 3000);
+  }
+
+  function connectToHost(){
+    if(!peer || peer.destroyed || !peer.open) return;
+    if(conn){ try{ conn.close(); }catch(e){} }
+    const c = peer.connect(SALA_ID, { reliable:true, serialization:'json' });
+    conn = c;
+    let opened = false;
+    const failTimer = setTimeout(()=>{
+      if(!opened && conn === c){ try{ c.close(); }catch(e){} setConnState('offline'); scheduleReconnect(); }
+    }, 12000);
+    c.on('open', ()=>{ opened = true; clearTimeout(failTimer); setConnState('live'); if(!statusEl.classList.contains('warn')) setStatus(''); });
+    c.on('data', onMsg);
+    c.on('close', ()=>{ clearTimeout(failTimer); if(conn !== c) return; setConnState('offline'); scheduleReconnect(); });
+    c.on('error', ()=>{ clearTimeout(failTimer); if(conn !== c) return; setConnState('offline'); scheduleReconnect(); });
+  }
+
+  function onMsg(msg){
+    if(!msg || typeof msg !== 'object' || msg.t !== 'reg_resultado') return;
+    clearTimeout(reqTimer);
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Anotarme';
+    if(msg.ok){
+      confirmed = true;
+      passInput.disabled = true;
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Anotado ✓';
+      setStatus('✅ Listo, ' + msg.nombre + ' — quedaste anotado.', 'ok');
+    }else if(msg.motivo === 'cerrado'){
+      setStatus('Las inscripciones están cerradas por ahora.', 'warn');
+    }else{
+      setStatus('Esa contraseña no es válida. Revisala y probá de nuevo.', 'warn');
+    }
+  }
+
+  function submit(){
+    if(confirmed) return;
+    const pass = (passInput.value || '').trim();
+    if(!pass){ setStatus('Escribí tu contraseña.', 'warn'); return; }
+    if(!(conn && conn.open)){ setStatus('Todavía estamos conectando… esperá un segundo.', 'warn'); return; }
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Enviando…';
+    setStatus('');
+    clearTimeout(reqTimer);
+    reqTimer = setTimeout(()=>{
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Anotarme';
+      setStatus('No hubo respuesta. Probá de nuevo.', 'warn');
+    }, 8000);
+    try{ conn.send({ t:'reg_intento', contrasena: pass }); }catch(e){}
+  }
+
+  submitBtn.addEventListener('click', submit);
+  passInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') submit(); });
+
+  async function init(){
+    setConnState('connecting');
+    let P;
+    try{ P = await loadPeerJs(); }
+    catch(e){ setConnState('error'); return; }
+    const p = new P();
+    peer = p;
+    p.on('open', connectToHost);
+    p.on('disconnected', ()=>{ try{ if(!p.destroyed) p.reconnect(); }catch(e){} });
+    p.on('error', (err)=>{
+      const type = err && err.type;
+      if(type === 'peer-unavailable'){ setConnState('offline'); scheduleReconnect(); }
+      else{ setConnState('error'); if(p.open) scheduleReconnect(); }
+    });
+  }
+  init();
+})();
+</script>
+</body>
+</html>
