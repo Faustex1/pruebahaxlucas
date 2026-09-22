@@ -332,6 +332,52 @@
   .status-msg{font-size:12.5px; color:var(--muted);}
   .status-msg.warn{color:var(--danger);}
 
+  /* ---------- INSCRIPCIONES ---------- */
+  .reg-switch-row{display:flex; align-items:center; gap:14px; margin-bottom:4px;}
+  .reg-switch{position:relative; display:inline-block; width:46px; height:26px; flex:none;}
+  .reg-switch input{position:absolute; opacity:0; width:0; height:0;}
+  .reg-switch-track{
+    position:absolute; inset:0; background:var(--paper-2); border:1px solid var(--card-border);
+    border-radius:999px; transition:background 0.2s, border-color 0.2s; cursor:pointer;
+  }
+  .reg-switch-thumb{
+    position:absolute; top:2px; left:2px; width:20px; height:20px; border-radius:50%;
+    background:var(--muted); transition:transform 0.2s, background 0.2s;
+  }
+  .reg-switch input:checked + .reg-switch-track{background:rgba(201,162,39,0.25); border-color:var(--gold);}
+  .reg-switch input:checked + .reg-switch-track .reg-switch-thumb{transform:translateX(20px); background:var(--gold);}
+  .reg-copy-btn{padding:4px 9px; font-size:11px; margin-left:8px;}
+  table.standings td.reg-pass{font-family:'IBM Plex Mono', monospace; white-space:nowrap;}
+  .reg-guest-screen{
+    position:fixed; inset:0; z-index:9999;
+    display:flex; align-items:center; justify-content:center;
+    padding:24px;
+    background:
+      radial-gradient(700px 420px at 12% 0%, rgba(59,95,99,0.16), transparent 60%),
+      radial-gradient(600px 400px at 88% 8%, rgba(201,162,39,0.08), transparent 60%),
+      var(--paper);
+  }
+  .reg-guest-card{
+    width:100%; max-width:420px;
+    background:var(--card); border:1px solid var(--card-border); border-radius:16px;
+    padding:34px 28px; box-shadow:var(--shadow), var(--card-glow); text-align:center;
+  }
+  .reg-guest-title{
+    font-family:'Bebas Neue', sans-serif; font-size:clamp(34px, 8vw, 46px);
+    margin:10px 0 6px; color:var(--ink); letter-spacing:0.01em;
+  }
+  .reg-guest-lead{color:var(--muted); font-size:14px; margin:0 0 22px; line-height:1.5;}
+  .reg-guest-input{
+    width:100%; padding:14px 16px; border-radius:10px; border:1px solid var(--card-border);
+    background:var(--paper-2); color:var(--ink); font-size:16px;
+    font-family:'IBM Plex Mono', monospace; text-align:center; letter-spacing:0.05em;
+  }
+  .reg-guest-input:focus{outline:2px solid var(--gold); outline-offset:1px;}
+  .reg-guest-status{min-height:20px; margin-top:16px; font-size:13.5px; color:var(--muted);}
+  .reg-guest-status.ok{color:#3E8E5A; font-weight:600;}
+  .reg-guest-status.warn{color:var(--danger); font-weight:600;}
+
+
   /* ---------- TEAMS ---------- */
   .teams-grid{
     display:grid;
@@ -980,30 +1026,6 @@
   .lk-config #config .config-card, .lk-config #koConfig .config-card, .lk-config .reset-row{opacity:0.5;}
   .lk-teams .fill-input, .lk-scores .score-box{cursor:default;}
   .reset-btn:disabled{opacity:0.45; cursor:not-allowed;}
-
-  .chat-wrap{margin-top:20px; padding-top:16px; border-top:1px dashed var(--card-border);}
-  .chat-log{
-    max-height:220px; overflow-y:auto; overflow-x:hidden;
-    display:flex; flex-direction:column; gap:7px;
-    padding:4px 2px 8px; margin-bottom:10px;
-    scroll-behavior:smooth;
-  }
-  .chat-empty{font-size:12.5px; color:var(--muted); padding:6px 2px;}
-  .chat-msg{max-width:82%; padding:7px 11px; border-radius:12px; font-size:13px; line-height:1.4; word-break:break-word;}
-  .chat-msg .cname{display:block; font-size:11px; font-weight:700; margin-bottom:2px; opacity:0.85;}
-  .chat-msg .ctime{font-size:10px; opacity:0.55; margin-left:6px; font-weight:400;}
-  .chat-msg.other{align-self:flex-start; background:var(--paper-2); border:1px solid var(--card-border); border-bottom-left-radius:3px;}
-  .chat-msg.mine{align-self:flex-end; background:linear-gradient(180deg, rgba(201,162,39,0.28), rgba(201,162,39,0.14)); border:1px solid var(--gold-dim); border-bottom-right-radius:3px; color:var(--ink);}
-  .chat-msg.other .cname{color:var(--gold-bright);}
-  .chat-msg.mine .cname{color:var(--gold-bright);}
-  .chat-form{display:flex; gap:7px; flex-wrap:wrap;}
-  .chat-form #chatTextInput{flex:1; min-width:120px;}
-  .chat-form .btn{flex:none;}
-  .share-btn .cdot{
-    width:7px; height:7px; border-radius:50%; background:#E0554F; flex:none;
-    margin-left:-2px; box-shadow:0 0 0 2px var(--pitch-mid, #10151c);
-  }
-  @media (max-width:560px){ .chat-form #chatNameInput{max-width:92px !important;} }
 </style>
 </head>
 <body>
@@ -1014,10 +1036,10 @@
     <p class="kicker" id="kicker">HAXBALL · LIGA + PLAYOFFS</p>
     <h1>Copa<br>LucasPazo27</h1>
     <div class="hero-stats">
-      <div class="stat"><b id="statTeams">4</b><span>equipos</span></div>
-      <div class="stat"><b id="statPlayers">12</b><span>jugadores</span></div>
-      <div class="stat"><b id="statMatches">6</b><span>partidos</span></div>
-      <div class="stat"><b id="statExtra">1</b><span id="statExtraLabel">grupo único</span></div>
+      <div class="stat"><b id="statTeams">4</b><span id="statTeamsLabel">equipos</span></div>
+      <div class="stat"><b id="statPlayers">12</b><span id="statPlayersLabel">jugadores</span></div>
+      <div class="stat"><b id="statMatches">6</b><span id="statMatchesLabel">partidos</span></div>
+      <div class="stat" id="statExtraBox"><b id="statExtra">1</b><span id="statExtraLabel">grupo único</span></div>
     </div>
     <p class="sponsor-line">Página hecha por SHIT por medio de Claude</p>
   </div>
@@ -1034,15 +1056,20 @@
       <span class="mode-ico">🏆</span>
       <span><b>Eliminatoria directa</b><small>Llaves a un partido · sin puntos</small></span>
     </button>
+    <button class="mode-tab" type="button" role="tab" aria-selected="false" data-view="registro" id="regTabBtn">
+      <span class="mode-ico">📝</span>
+      <span><b>Inscripciones</b><small>Anotate desde el chat</small></span>
+    </button>
     </div>
     <button class="share-btn" type="button" id="shareBtn" data-sync="connecting" aria-haspopup="dialog" title="Compartir torneo">
-      <span class="sico">🔗</span><span class="lbl">Compartir</span><span class="sdot" aria-hidden="true"></span><span class="pc" id="peerCount" hidden></span><span class="cdot" id="chatDot" hidden></span>
+      <span class="sico">🔗</span><span class="lbl">Compartir</span><span class="sdot" aria-hidden="true"></span><span class="pc" id="peerCount" hidden></span>
     </button>
   </div>
 </nav>
 <div class="ro-banner" id="roBanner" hidden>👀 Modo solo lectura: ves los cambios en vivo, pero no podés editar.</div>
 
 <div class="wrap">
+
 <div id="viewGroup">
 
   <section id="config">
@@ -1221,6 +1248,52 @@
 
 </div><!-- /viewKo -->
 
+<div id="viewRegistro" hidden>
+  <section id="registro">
+    <div class="sec-head">
+      <div class="sec-head-left"><span class="sec-num">★</span><h2>Inscripciones</h2></div>
+      <p>Anotate desde el chat</p>
+    </div>
+    <div class="config-card">
+      <div class="reg-switch-row">
+        <label class="reg-switch">
+          <input type="checkbox" id="regOpenToggle">
+          <span class="reg-switch-track"><span class="reg-switch-thumb"></span></span>
+        </label>
+        <div>
+          <b id="regOpenLabel">Inscripciones cerradas</b>
+          <p class="rules-line">Mientras estén cerradas, nadie se puede anotar aunque tenga el link.</p>
+        </div>
+      </div>
+
+      <hr class="divider-line">
+
+      <label class="names-label">Crear usuario</label>
+      <div class="config-row">
+        <div class="config-field">
+          <label for="regNameInput">Nombre</label>
+          <input type="text" id="regNameInput" maxlength="40" placeholder="ej: martino" autocomplete="off">
+        </div>
+        <div class="config-field">
+          <label for="regPassInput">Contraseña</label>
+          <input type="text" id="regPassInput" maxlength="30" placeholder="ej: 4x9k2" autocomplete="off">
+        </div>
+        <button class="btn btn-small" type="button" id="regGenPassBtn">🎲 Generar</button>
+        <button class="btn btn-primary" type="button" id="regAddBtn">➕ Crear</button>
+      </div>
+      <p class="status-msg" id="regAddStatus"></p>
+
+      <div class="table-wrap" style="margin-top:18px;">
+        <table class="standings" id="regTable">
+          <thead><tr><th style="text-align:left;">Nombre</th><th style="text-align:left;">Contraseña</th><th>Estado</th><th></th></tr></thead>
+          <tbody id="regTableBody"></tbody>
+        </table>
+      </div>
+      <p class="rules-line" id="regEmptyNote">Todavía no creaste ningún usuario.</p>
+    </div>
+  </section>
+</div><!-- /viewRegistro -->
+
   <footer>Copa LucasPazo27 — armado automáticamente a partir de los equipos cargados.</footer>
 </div>
 
@@ -1281,17 +1354,6 @@
       </ul>
     </div>
     <p class="peers-line" id="sharePeers"></p>
-    <div class="chat-wrap" id="chatWrap" hidden>
-      <p class="names-label">Chat</p>
-      <div class="chat-log" id="chatLog" aria-live="polite"></div>
-      <form class="chat-form" id="chatForm">
-        <input class="link-input" id="chatNameInput" maxlength="40" placeholder="Tu nombre" autocomplete="off" style="max-width:120px;">
-        <input class="link-input" id="chatTextInput" maxlength="300" placeholder="Escribir un mensaje…" autocomplete="off">
-        <button class="btn btn-primary" type="submit">Enviar</button>
-      </form>
-      <p class="modal-note" id="chatOfflineNote" hidden>Conectate para poder chatear.</p>
-    </div>
-
 
     <details class="plan-b" id="planB">
       <summary>¿No pueden abrir el link? Pasar el torneo con un código</summary>
@@ -1424,6 +1486,10 @@
     return { numTeams, playersPerTeam, teams, winners: {}, thirdWinner: null };
   }
 
+  function defaultRegistro(){
+    return { open:false, usuarios:[] };
+  }
+
   function defaultState(){
     const numTeams = 4, playersPerTeam = 3;
     const teams = [];
@@ -1432,7 +1498,8 @@
       numTeams, playersPerTeam, teams,
       fixtures: [], scores: {},
       semiWinners: { A:null, B:null }, finalWinner:null, thirdWinner:null,
-      ko: defaultKoState()
+      ko: defaultKoState(),
+      registro: defaultRegistro()
     };
   }
 
@@ -1443,6 +1510,7 @@
         const parsed = JSON.parse(raw);
         if(parsed && Array.isArray(parsed.teams)){
           if(!parsed.ko || !Array.isArray(parsed.ko.teams)) parsed.ko = defaultKoState();
+          if(!parsed.registro || !Array.isArray(parsed.registro.usuarios)) parsed.registro = defaultRegistro();
           return parsed;
         }
       }
@@ -1592,6 +1660,13 @@
   }
   const JOIN_ID = parseJoin();
   const isGuest = !!JOIN_ID;
+  function newRegId(){ return 'r' + Math.random().toString(36).slice(2,10); }
+  function genRegPass(){
+    const abc = 'abcdefghjkmnpqrstuvwxyz23456789'; // sin caracteres confusos (sin i,l,o,1,0)
+    let s = '';
+    for(let i=0;i<6;i++) s += abc[Math.floor(Math.random()*abc.length)];
+    return s;
+  }
 
   const LS = {
     get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } },
@@ -1657,64 +1732,6 @@
     t.classList.add('show');
     clearTimeout(toastT);
     toastT = setTimeout(()=> t.classList.remove('show'), 3200);
-  }
-
-  // ---- chat ----
-  let chatMessages = [];
-  let chatSeq = 0;
-  let chatUnread = false;
-  function chatId(){ return 'c' + (++chatSeq) + '_' + Date.now() + '_' + Math.random().toString(36).slice(2,6); }
-  function sanitizeChatText(v){ return typeof v === 'string' ? v.replace(/\s+/g,' ').trim().slice(0, 300) : ''; }
-  function sanitizeChatName(v){
-    const n = typeof v === 'string' ? v.replace(/\s+/g,' ').trim().slice(0, 40) : '';
-    return n || (isGuest ? 'Invitado' : 'Organizador');
-  }
-  function myChatName(){ return sanitizeChatName(LS.get('copa_chat_name') || document.getElementById('chatNameInput').value); }
-  function fmtTime(ts){ const d = new Date(ts); return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'); }
-  function renderChatAll(list){
-    chatMessages = list.slice(-60);
-    const log = document.getElementById('chatLog');
-    log.innerHTML = '';
-    if(!chatMessages.length){ log.innerHTML = '<p class="chat-empty">Todavía no hay mensajes. Escribí algo para arrancar.</p>'; return; }
-    chatMessages.forEach(m => appendChatDOM(m, false));
-    log.scrollTop = log.scrollHeight;
-  }
-  function appendChatDOM(m, doScroll){
-    const log = document.getElementById('chatLog');
-    const empty = log.querySelector('.chat-empty');
-    if(empty) empty.remove();
-    const mine = m.sender === (isGuest ? (guestConn && guestConn.connectionId) : 'host');
-    const div = document.createElement('div');
-    div.className = 'chat-msg ' + (mine ? 'mine' : 'other');
-    div.innerHTML = '<span class="cname">' + esc(m.from) + '<span class="ctime">' + fmtTime(m.ts) + '</span></span>' + esc(m.text);
-    log.appendChild(div);
-    if(doScroll !== false){
-      const nearBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 120;
-      if(nearBottom || mine) log.scrollTop = log.scrollHeight;
-    }
-  }
-  function pushChat(m){
-    chatMessages.push(m);
-    if(chatMessages.length > 60) chatMessages.shift();
-    const modalOpen = !document.getElementById('shareModal').hidden;
-    appendChatDOM(m, modalOpen);
-    const mine = m.sender === (isGuest ? (guestConn && guestConn.connectionId) : 'host');
-    if(!mine && !modalOpen){
-      chatUnread = true;
-      document.getElementById('chatDot').hidden = false;
-      const now = Date.now();
-      if(now - lastToast > 4000){ lastToast = now; toast('💬 ' + m.from + ': ' + (m.text.length > 60 ? m.text.slice(0,60) + '…' : m.text)); }
-    }
-  }
-  function sendChatHost(text){
-    text = sanitizeChatText(text); if(!text) return;
-    const m = { id: chatId(), sender:'host', from: myChatName(), text, ts: Date.now() };
-    pushChat(m);
-    broadcast({ t:'chat', msg:m });
-  }
-  function sendChatGuest(text){
-    text = sanitizeChatText(text); if(!text || !(guestConn && guestConn.open)) return;
-    sendTo(guestConn, { t:'chat', from: myChatName(), text });
   }
 
   // ---- carga de PeerJS (conexión directa entre navegadores) ----
@@ -1790,13 +1807,6 @@
       document.getElementById('shareLinkInput').placeholder = link ? '' : 'Completá la dirección de tu página (abajo)';
       document.getElementById('shareCopyBtn').disabled = !link;
     }
-
-    const chatActive = isGuest ? guestState === 'live' : shareState === 'live';
-    document.getElementById('chatWrap').hidden = !chatActive;
-    document.getElementById('chatOfflineNote').hidden = chatActive;
-    const chatBtn = document.querySelector('#chatForm button');
-    document.getElementById('chatTextInput').disabled = !chatActive;
-    if(chatBtn) chatBtn.disabled = !chatActive;
   }
   function buildLink(){
     if(!hostId) return '';
@@ -1804,6 +1814,13 @@
     if(/^https?:$/.test(location.protocol)) base = location.href.split('#')[0].split('?')[0];
     else base = (LS.get('copa_base') || '').trim().split('#')[0];
     return base ? base + '#sala=' + hostId : '';
+  }
+  function buildRegLink(){
+    if(!hostId) return '';
+    let dir;
+    if(/^https?:$/.test(location.protocol)) dir = location.href.split('#')[0].split('?')[0].replace(/[^/]*$/, '');
+    else dir = (LS.get('copa_base') || '').trim().split('#')[0].replace(/[^/]*$/, '');
+    return dir ? dir + 'inscripcion.html?sala=' + hostId : '';
   }
 
   // ---- marcar / enviar cambios ----
@@ -1901,7 +1918,7 @@
     conn.on('open', ()=>{
       if(conns.size >= 30){ try{ conn.close(); }catch(e){} return; }
       conns.set(conn.connectionId, conn);
-      sendTo(conn, { t:'snap', secs: allSecs(), perms, chatLog: chatMessages });
+      sendTo(conn, { t:'snap', secs: allSecs(), perms });
       broadcastPeers();
     });
     conn.on('data', (msg)=> onGuestMsg(conn, msg));
@@ -1911,12 +1928,17 @@
   }
   function onGuestMsg(conn, msg){
     if(!msg || typeof msg !== 'object') return;
-    if(msg.t === 'chat'){
-      const text = sanitizeChatText(msg.text);
-      if(!text) return;
-      const m = { id: chatId(), sender: conn.connectionId, from: sanitizeChatName(msg.from), text, ts: Date.now() };
-      pushChat(m);
-      broadcast({ t:'chat', msg:m });
+    if(msg.t === 'reg_intento'){
+      const pass = cleanStr(msg.contrasena, 30).trim();
+      if(!state.registro.open){ sendTo(conn, { t:'reg_resultado', ok:false, motivo:'cerrado' }); return; }
+      const u = state.registro.usuarios.find(x=> x.contrasena === pass);
+      if(!pass || !u){ sendTo(conn, { t:'reg_resultado', ok:false, motivo:'invalida' }); return; }
+      u.anotado = true;
+      u.anotadoEn = Date.now();
+      saveState();
+      renderRegistro();
+      toast('✅ ' + u.nombre + ' se anotó al torneo');
+      sendTo(conn, { t:'reg_resultado', ok:true, nombre:u.nombre });
       return;
     }
     if(msg.t !== 'sec') return;
@@ -1994,7 +2016,6 @@
     hostId = null;
     LS.del('copa_room'); LS.del('copa_sharing');
     shareState = 'off'; peerCount = 1;
-    chatMessages = []; renderChatAll([]);
     updateShareUI();
   }
 
@@ -2002,12 +2023,10 @@
   function onHostMsg(msg){
     if(!msg || typeof msg !== 'object') return;
     if((msg.t === 'snap' || msg.t === 'perm') && msg.perms && typeof msg.perms === 'object') setGuestPerms(msg.perms);
-    if(msg.t === 'chat' && msg.msg && typeof msg.msg === 'object'){ pushChat(msg.msg); return; }
     if(msg.t === 'snap' && msg.secs && typeof msg.secs === 'object'){
       let changed = false;
       SECTION_NAMES.forEach(n=>{ if(receiveSection(n, msg.secs[n])) changed = true; });
       const wasFirst = firstSnap;
-      if(wasFirst && Array.isArray(msg.chatLog)) renderChatAll(msg.chatLog);
       firstSnap = false;
       document.body.classList.remove('connecting');
       guestState = 'live'; updateShareUI();
@@ -2020,6 +2039,7 @@
       updateShareUI();
     }
   }
+
   function guestReconnectSoon(){
     clearTimeout(guestRetry);
     guestRetry = setTimeout(connectToHost, 3000);
@@ -2190,10 +2210,6 @@
     updateShareUI();
     modal.hidden = false;
     document.body.style.overflow = 'hidden';
-    chatUnread = false;
-    document.getElementById('chatDot').hidden = true;
-    const log = document.getElementById('chatLog');
-    if(log) log.scrollTop = log.scrollHeight;
     setTimeout(()=>{
       const target = isGuest ? document.getElementById('shareClose')
         : (shareState === 'off' ? document.getElementById('shareStartBtn') : document.getElementById('shareCopyBtn'));
@@ -2261,20 +2277,6 @@
       }catch(e){
         msg.textContent = 'Ese código no es válido o está incompleto.'; msg.className = 'modal-note warn';
       }
-    });
-    renderChatAll([]);
-    $('chatNameInput').value = LS.get('copa_chat_name') || (isGuest ? '' : 'Organizador');
-    $('chatNameInput').placeholder = isGuest ? 'Tu nombre' : 'Organizador';
-    $('chatNameInput').addEventListener('change', ()=> LS.set('copa_chat_name', sanitizeChatName($('chatNameInput').value)));
-    $('chatForm').addEventListener('submit', (e)=>{
-      e.preventDefault();
-      const ti = $('chatTextInput');
-      const text = ti.value;
-      if(!text.trim()) return;
-      LS.set('copa_chat_name', myChatName());
-      if(isGuest) sendChatGuest(text); else sendChatHost(text);
-      ti.value = '';
-      ti.focus();
     });
     new MutationObserver(()=>{ if(isGuest) applyLock(); }).observe(document.querySelector('.wrap'), { childList:true, subtree:true });
     window.addEventListener('pagehide', ()=>{ clearTimeout(syncTimer); flushAll(); });
@@ -2994,30 +2996,49 @@
     }
   }
   // ---------- hero / secciones ----------
+  const VIEW_ELS = { group:'viewGroup', ko:'viewKo', registro:'viewRegistro' };
   function updateHero(){
-    const isKo = state.view === 'ko';
+    const v = state.view;
     const kicker = document.getElementById('kicker');
-    if(isKo){
+    const extraBox = document.getElementById('statExtraBox');
+    if(v === 'ko'){
       const lay = koLayout(state.ko.numTeams);
+      extraBox.hidden = false;
       kicker.textContent = 'HAXBALL · ELIMINATORIA DIRECTA';
       document.getElementById('statTeams').textContent = state.ko.teams.length;
+      document.getElementById('statTeamsLabel').textContent = 'equipos';
       document.getElementById('statPlayers').textContent = state.ko.teams.length * state.ko.playersPerTeam;
+      document.getElementById('statPlayersLabel').textContent = 'jugadores';
       document.getElementById('statMatches').textContent = state.ko.teams.length - 1;
+      document.getElementById('statMatchesLabel').textContent = 'partidos';
       document.getElementById('statExtra').textContent = lay.rounds;
       document.getElementById('statExtraLabel').textContent = lay.rounds === 1 ? 'ronda' : 'rondas';
+    } else if(v === 'registro'){
+      const list = state.registro.usuarios;
+      const anotados = list.filter(u=> u.anotado).length;
+      extraBox.hidden = true;
+      kicker.textContent = 'HAXBALL · INSCRIPCIONES';
+      document.getElementById('statTeams').textContent = list.length;
+      document.getElementById('statTeamsLabel').textContent = list.length === 1 ? 'usuario creado' : 'usuarios creados';
+      document.getElementById('statPlayers').textContent = anotados;
+      document.getElementById('statPlayersLabel').textContent = anotados === 1 ? 'anotado' : 'anotados';
+      document.getElementById('statMatches').textContent = state.registro.open ? 'Abiertas' : 'Cerradas';
+      document.getElementById('statMatchesLabel').textContent = '';
     } else {
+      extraBox.hidden = false;
       kicker.textContent = 'HAXBALL · LIGA + PLAYOFFS';
       document.getElementById('statTeams').textContent = state.teams.length;
+      document.getElementById('statTeamsLabel').textContent = 'equipos';
       document.getElementById('statPlayers').textContent = state.teams.length * state.playersPerTeam;
+      document.getElementById('statPlayersLabel').textContent = 'jugadores';
       document.getElementById('statMatches').textContent = (state.fixtures||[]).reduce((sum,j)=>sum+j.matches.length,0);
+      document.getElementById('statMatchesLabel').textContent = 'partidos';
       document.getElementById('statExtra').textContent = '1';
       document.getElementById('statExtraLabel').textContent = 'grupo único';
     }
   }
   function applyView(){
-    const isKo = state.view === 'ko';
-    document.getElementById('viewGroup').hidden = isKo;
-    document.getElementById('viewKo').hidden = !isKo;
+    Object.keys(VIEW_ELS).forEach(k=>{ document.getElementById(VIEW_ELS[k]).hidden = (k !== state.view); });
     document.querySelectorAll('.mode-tab').forEach(tab=>{
       const active = tab.dataset.view === state.view;
       tab.classList.toggle('active', active);
@@ -3028,7 +3049,7 @@
   let switching = false;
   const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   function popStats(){
-    document.querySelectorAll('.hero-stats .stat b').forEach((el,i)=>{
+    document.querySelectorAll('.hero-stats .stat:not([hidden]) b').forEach((el,i)=>{
       el.classList.remove('pop');
       void el.offsetWidth;
       el.style.animationDelay = (i*0.05)+'s';
@@ -3036,15 +3057,15 @@
     });
   }
   function switchView(v){
-    if(v === state.view || switching) return;
-    const outEl = document.getElementById(state.view === 'ko' ? 'viewKo' : 'viewGroup');
+    if(v === state.view || switching || !VIEW_ELS[v]) return;
+    const outEl = document.getElementById(VIEW_ELS[state.view]);
     const heroH = document.querySelector('.hero').offsetHeight;
     const finish = ()=>{
       outEl.classList.remove('view-leave');
       state.view = v;
       saveState();
       applyView();
-      const inEl = document.getElementById(v === 'ko' ? 'viewKo' : 'viewGroup');
+      const inEl = document.getElementById(VIEW_ELS[v]);
       if(!reduceMotion){
         inEl.classList.remove('view-enter');
         void inEl.offsetWidth;
@@ -3073,6 +3094,61 @@
   document.querySelectorAll('.mode-tab').forEach(tab=>{
     tab.addEventListener('click', ()=> switchView(tab.dataset.view));
   });
+  // ---------- inscripciones (panel del organizador) ----------
+  function renderRegistro(){
+    const body = document.getElementById('regTableBody');
+    if(!body) return;
+    const list = state.registro.usuarios;
+    document.getElementById('regEmptyNote').hidden = list.length > 0;
+    body.innerHTML = list.map(u=>{
+      const estado = u.anotado ? '✅ Anotado' : '— Sin anotar';
+      return '<tr>'
+        + '<td class="name">' + esc(u.nombre) + '</td>'
+        + '<td class="reg-pass">' + esc(u.contrasena) + '<button class="btn btn-small reg-copy-btn" type="button" data-copy="' + esc(u.contrasena) + '">Copiar</button></td>'
+        + '<td>' + estado + '</td>'
+        + '<td><button class="btn btn-small btn-danger reg-del-btn" type="button" data-id="' + u.id + '">Borrar</button></td>'
+        + '</tr>';
+    }).join('');
+    const chk = document.getElementById('regOpenToggle');
+    chk.checked = !!state.registro.open;
+    document.getElementById('regOpenLabel').textContent = state.registro.open ? 'Inscripciones abiertas' : 'Inscripciones cerradas';
+    if(state.view === 'registro') updateHero();
+  }
+  document.getElementById('regOpenToggle').addEventListener('change', (e)=>{
+    state.registro.open = e.target.checked;
+    saveState();
+    renderRegistro();
+  });
+  document.getElementById('regGenPassBtn').addEventListener('click', ()=>{
+    document.getElementById('regPassInput').value = genRegPass();
+  });
+  document.getElementById('regAddBtn').addEventListener('click', ()=>{
+    const nameInput = document.getElementById('regNameInput');
+    const passInput = document.getElementById('regPassInput');
+    const statusEl = document.getElementById('regAddStatus');
+    const nombre = nameInput.value.trim();
+    const pass = passInput.value.trim();
+    statusEl.classList.remove('warn');
+    if(!nombre){ statusEl.textContent = 'Poné un nombre.'; statusEl.classList.add('warn'); return; }
+    if(!pass){ statusEl.textContent = 'Poné una contraseña (o generá una con 🎲).'; statusEl.classList.add('warn'); return; }
+    if(state.registro.usuarios.some(u=> u.contrasena === pass)){ statusEl.textContent = 'Esa contraseña ya la tiene otro usuario — probá con otra.'; statusEl.classList.add('warn'); return; }
+    state.registro.usuarios.push({ id:newRegId(), nombre:nombre.slice(0,40), contrasena:pass.slice(0,30), anotado:false, anotadoEn:null });
+    nameInput.value = ''; passInput.value = '';
+    statusEl.textContent = 'Usuario creado — copiale la contraseña y pasásela.';
+    saveState();
+    renderRegistro();
+  });
+  document.getElementById('regTableBody').addEventListener('click', async (e)=>{
+    const cp = e.target.closest('.reg-copy-btn');
+    if(cp){ await copyText(cp.dataset.copy); toast('Contraseña copiada'); return; }
+    const del = e.target.closest('.reg-del-btn');
+    if(del){
+      if(!(await askConfirm('¿Borrar este usuario de inscripciones?', 'Sí, borrar'))) return;
+      state.registro.usuarios = state.registro.usuarios.filter(u=> u.id !== del.dataset.id);
+      saveState();
+      renderRegistro();
+    }
+  });
   // ---------- master render ----------
   function renderAll(){
     renderTeams();
@@ -3081,6 +3157,7 @@
     renderPlayoffs();
     renderKoTeams();
     renderKoBracket();
+    renderRegistro();
     updateHero();
     setVal('numTeamsInput', state.numTeams);
     setVal('playersPerTeamInput', state.playersPerTeam);
@@ -3175,6 +3252,9 @@
     document.getElementById('drawStatus').textContent = '';
     renderAll();
   });
+
+  document.getElementById('regTabBtn').hidden = isGuest;
+  if(isGuest && state.view === 'registro') state.view = 'group';
 
   renderAll();
   applyView();
