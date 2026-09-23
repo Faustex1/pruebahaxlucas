@@ -62,6 +62,54 @@
     margin-left:auto; font-family:'IBM Plex Mono', monospace; font-size:10.5px;
     color:var(--muted); font-weight:500; white-space:nowrap;
   }
+
+  /* ---------- CAMPEÓN ---------- */
+  .ov-champ{
+    position:relative; display:flex; flex-direction:column; align-items:center;
+    text-align:center; padding:30px 10px 18px; overflow:hidden;
+  }
+  .ov-champ-badge{
+    position:relative; z-index:2;
+    animation:champ-in 0.6s cubic-bezier(.2,.9,.3,1.2) both;
+  }
+  .ov-champ-badge::after{
+    content:''; position:absolute; inset:-14px;
+    border-radius:50%;
+    box-shadow:0 0 0 0 rgba(201,162,39,0.35);
+    animation:champ-glow 2.2s ease-out 0.6s infinite;
+  }
+  .ov-champ-label{
+    font-family:'IBM Plex Mono', monospace; font-size:13px; letter-spacing:0.12em;
+    color:var(--gold-bright); margin-top:20px; font-weight:700;
+    animation:champ-in 0.6s 0.15s cubic-bezier(.2,.9,.3,1.2) both;
+  }
+  .ov-champ-name{
+    font-family:'Bebas Neue', sans-serif; font-size:clamp(30px,6vw,44px);
+    letter-spacing:0.02em; margin-top:4px; color:var(--ink);
+    background:linear-gradient(100deg, var(--ink) 40%, var(--gold-bright) 50%, var(--ink) 60%);
+    background-size:220% 100%;
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    animation:champ-in 0.6s 0.25s cubic-bezier(.2,.9,.3,1.2) both, champ-shine 3.5s 1s linear infinite;
+  }
+  @keyframes champ-in{ from{opacity:0; transform:translateY(14px) scale(0.92);} to{opacity:1; transform:translateY(0) scale(1);} }
+  @keyframes champ-glow{ 0%{box-shadow:0 0 0 0 rgba(201,162,39,0.35);} 100%{box-shadow:0 0 0 22px rgba(201,162,39,0);} }
+  @keyframes champ-shine{ 0%{background-position:120% 0;} 100%{background-position:-40% 0;} }
+  .confetti{
+    position:absolute; top:-14px; width:7px; height:12px; z-index:1;
+    background:var(--gold); opacity:0.85; border-radius:1px;
+    animation:champ-fall 2.6s ease-in forwards;
+  }
+  .confetti.c1{background:var(--gold-bright);}
+  .confetti.c2{background:#EDE8DC;}
+  .confetti.c3{background:var(--gold-dim); width:6px; height:9px;}
+  .confetti.c4{background:var(--gold-bright); width:8px; height:8px; border-radius:50%;}
+  @keyframes champ-fall{
+    0%{ transform:translateY(0) rotate(0deg); opacity:0.9; }
+    100%{ transform:translateY(190px) rotate(340deg); opacity:0; }
+  }
+  @media (prefers-reduced-motion: reduce){
+    .ov-champ-badge, .ov-champ-label, .ov-champ-name, .confetti, .ov-champ-badge::after{ animation:none !important; }
+  }
   .table-wrap{
     overflow-x:auto;
     border:1px solid var(--card-border);
@@ -440,6 +488,21 @@ function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c=>({'&':
       + (tag ? '<span class="tag">' + tag + '</span>' : '')
       + '</div>';
   }
+  function renderChampionScreen(champTeam, modeLabel){
+    document.getElementById('ovNext').hidden = true;
+    document.getElementById('ovSub').textContent = '🏆 Campeón';
+    const confettiClasses = ['c0','c1','c2','c3','c4'];
+    let confetti = '';
+    for(let i=0;i<12;i++){
+      confetti += '<span class="confetti ' + confettiClasses[i % confettiClasses.length] + '" style="left:' + (4 + i*8) + '%; animation-delay:' + (i*0.12).toFixed(2) + 's;"></span>';
+    }
+    return '<div class="ov-champ">'
+      + confetti
+      + '<div class="ov-champ-badge">' + badgeHTML(champTeam, 'sz-lg') + '</div>'
+      + '<div class="ov-champ-label">🏆 CAMPEÓN ' + esc(modeLabel) + '</div>'
+      + '<div class="ov-champ-name">' + esc(champTeam.name) + '</div>'
+      + '</div>';
+  }
   function champBoxHTML(champTeam){
     return '<div class="bracket-col"><div class="bcard"><div class="blabel">🏆 Campeón</div>'
       + '<div class="bslot ' + (champTeam?'selected':'disabled') + '">'
@@ -449,7 +512,10 @@ function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c=>({'&':
   function renderPlayoffsView(standings){
     const n = standings.length;
     const champTeam = LP.finalWinner ? teamByIdL(LP.finalWinner) : null;
-    const champBox = champBoxHTML(champTeam ? { id:champTeam.id, name:displayName(champTeam, L.teams), icon:champTeam.icon } : null);
+    if(champTeam){
+      return renderChampionScreen({ id:champTeam.id, name:displayName(champTeam, L.teams), icon:champTeam.icon }, 'DE LA LIGA');
+    }
+    const champBox = champBoxHTML(null);
 
     if(n < 4){
       const top1 = standings[0] ? teamByIdL(standings[0].id) : null;
@@ -575,6 +641,11 @@ function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c=>({'&':
     if(!K.teams.length){ root.innerHTML = '<p class="ov-loading">Todavía no hay equipos cargados.</p>'; return; }
     const lay = koLayout(K.numTeams);
     const totalRounds = lay.rounds;
+    const champWinnerIdEarly = koWinner(totalRounds-1, 0);
+    if(champWinnerIdEarly){
+      const ct = koTeamById(champWinnerIdEarly);
+      if(ct){ root.innerHTML = renderChampionScreen({ id:ct.id, name:displayName(ct, K.teams), icon:ct.icon }, 'DE LA ELIMINATORIA'); return; }
+    }
     let html = '<div class="bracket-scroll"><div class="bracket" style="--cols:' + (totalRounds+1) + ';">';
     for(let r=0;r<totalRounds;r++){
       const teamsInRound = lay.size / Math.pow(2,r);
