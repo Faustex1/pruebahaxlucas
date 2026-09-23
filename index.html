@@ -645,6 +645,15 @@
     color:var(--muted);
     margin-top:6px;
   }
+  .team-text{
+    display:flex; flex-direction:column; min-width:0; line-height:1.28;
+  }
+  .team-text-name{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .roster-line{
+    display:block; font-size:10px; font-weight:400; color:var(--muted);
+    margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;
+  }
+  .team-name.right .team-text{align-items:flex-end;}
 
   /* ---------- STANDINGS ---------- */
   .table-wrap{
@@ -2520,6 +2529,17 @@
     return n ? n.charAt(0).toUpperCase() : '?';
   }
   function matchKey(a,b){ return a+'_'+b; }
+  function rosterLine(team){
+    if(!team || !Array.isArray(team.players)) return '';
+    return team.players.map(p=>(p||'').trim()).filter(Boolean).join(', ');
+  }
+  function nameBlockHTML(badgeSource, name, rosterSource, sizeClass){
+    const roster = rosterLine(rosterSource);
+    return badgeHTML(badgeSource, sizeClass)
+      + '<span class="team-text"><span class="team-text-name">' + esc(name) + '</span>'
+      + (roster ? ('<small class="roster-line">' + esc(roster) + '</small>') : '')
+      + '</span>';
+  }
 
   // ---------- round robin schedule ----------
   function roundRobin(ids){
@@ -2705,6 +2725,7 @@
         const t = teams.find(x=>x.id===e.target.dataset.id);
         t.players[parseInt(e.target.dataset.idx,10)] = e.target.value;
         saveState();
+        callbacks.onPlayerChange && callbacks.onPlayerChange(t);
       }
     });
     gridEl.addEventListener('click', (e)=>{
@@ -2731,6 +2752,11 @@
       renderPlayoffs();
     },
     onIconChange: ()=>{
+      renderFixtures();
+      computeStandings();
+      renderPlayoffs();
+    },
+    onPlayerChange: ()=>{
       renderFixtures();
       computeStandings();
       renderPlayoffs();
@@ -2770,12 +2796,13 @@
         const key = matchKey(a,b);
         const row = document.createElement('div');
         row.className = 'match';
+        const rosterA = rosterLine(ta), rosterB = rosterLine(tb);
         row.innerHTML = `
-          <div class="team-name">${badgeHTML(ta,'sz-sm')}<span class="team-label" data-team="${a}">${esc(displayName(ta))}</span></div>
+          <div class="team-name">${badgeHTML(ta,'sz-sm')}<span class="team-text"><span class="team-label team-text-name" data-team="${a}">${esc(displayName(ta))}</span>${rosterA?`<small class="roster-line">${esc(rosterA)}</small>`:''}</span></div>
           <input class="score-box" type="text" inputmode="numeric" maxlength="2" data-key="${key}" data-side="a" placeholder="–" value="${getScore(key,'a')}">
           <div class="vs">VS</div>
           <input class="score-box" type="text" inputmode="numeric" maxlength="2" data-key="${key}" data-side="b" placeholder="–" value="${getScore(key,'b')}">
-          <div class="team-name right">${badgeHTML(tb,'sz-sm')}<span class="team-label" data-team="${b}">${esc(displayName(tb))}</span></div>
+          <div class="team-name right">${badgeHTML(tb,'sz-sm')}<span class="team-text"><span class="team-label team-text-name" data-team="${b}">${esc(displayName(tb))}</span>${rosterB?`<small class="roster-line">${esc(rosterB)}</small>`:''}</span></div>
         `;
         block.appendChild(row);
       });
@@ -2841,7 +2868,7 @@
       const posDisplay = idx<3 ? medals[idx] : (idx+1);
       tr.innerHTML = `
         <td class="pos-cell">${posDisplay}</td>
-        <td class="name">${badgeHTML(r,'sz-xs')}${esc(r.name)}</td>
+        <td class="name">${nameBlockHTML(r, r.name, teamById(r.id), 'sz-xs')}</td>
         <td>${r.pj}</td><td>${r.pg}</td><td>${r.pe}</td><td>${r.pp}</td>
         <td>${r.gf}</td><td>${r.gc}</td><td>${dg>0?'+':''}${dg}</td>
         <td class="pts">${r.pts}</td>
@@ -2858,7 +2885,7 @@
       return `<div class="bslot disabled">A definir</div>`;
     }
     return `<div class="bslot ${extraClass} ${selected?'selected':''}" data-role="${role}" data-team="${team.id}">
-      <span style="display:inline-flex;align-items:center;gap:8px;">${badgeHTML(team,'sz-xs')}${esc(team.name)}</span>
+      <span style="display:inline-flex;align-items:center;gap:8px;min-width:0;">${nameBlockHTML(team, team.name, teamById(team.id), 'sz-xs')}</span>
       ${tag?`<span class="tag">${tag}</span>`:''}
     </div>`;
   }
@@ -2867,7 +2894,7 @@
     const champEl = document.getElementById('champion');
     if(champTeam){
       champEl.className = 'bslot selected';
-      champEl.innerHTML = `<span style="display:inline-flex;align-items:center;gap:8px;">${badgeHTML(champTeam,'sz-xs')}${esc(displayName(champTeam))}</span>`;
+      champEl.innerHTML = `<span style="display:inline-flex;align-items:center;gap:8px;min-width:0;">${nameBlockHTML(champTeam, displayName(champTeam), champTeam, 'sz-xs')}</span>`;
     } else {
       champEl.className = 'bslot disabled';
       champEl.textContent = 'A definir';
@@ -2977,7 +3004,8 @@
   }
   attachTeamGridHandlers(koTeamsGrid, ()=>state.ko.teams, {
     onNameChange: ()=>{ renderKoBracket(); },
-    onIconChange: ()=>{ renderKoBracket(); }
+    onIconChange: ()=>{ renderKoBracket(); },
+    onPlayerChange: ()=>{ renderKoBracket(); }
   });
 
   // ---------- knockout: bracket ----------
@@ -3054,7 +3082,7 @@
   function koSlotHTML(team, r, m, winnerId, isBye, autoPass){
     if(isBye) return `<div class="bslot bye">Libre — pasa directo</div>`;
     if(!team) return `<div class="bslot disabled">A definir</div>`;
-    const inner = `<span style="display:inline-flex;align-items:center;gap:8px;">${badgeHTML(team,'sz-xs')}${esc(koDisplayName(team))}</span>`;
+    const inner = `<span style="display:inline-flex;align-items:center;gap:8px;min-width:0;">${nameBlockHTML(team, koDisplayName(team), team, 'sz-xs')}</span>`;
     if(autoPass) return `<div class="bslot auto">${inner}<span class="tag">pasa directo</span></div>`;
     const selected = winnerId === team.id;
     return `<div class="bslot ${selected?'selected':''}" data-round="${r}" data-match="${m}" data-team="${team.id}">${inner}</div>`;
@@ -3109,7 +3137,7 @@
     html += `<div class="bracket-col">
       <div class="bcard">
         <div class="blabel">🏆 Campeón</div>
-        <div id="koChampion" class="bslot ${champTeam?'selected':'disabled'}">${champTeam ? `<span style="display:inline-flex;align-items:center;gap:8px;">${badgeHTML(champTeam,'sz-xs')}${esc(koDisplayName(champTeam))}</span>` : 'A definir'}</div>
+        <div id="koChampion" class="bslot ${champTeam?'selected':'disabled'}">${champTeam ? `<span style="display:inline-flex;align-items:center;gap:8px;min-width:0;">${nameBlockHTML(champTeam, koDisplayName(champTeam), champTeam, 'sz-xs')}</span>` : 'A definir'}</div>
       </div>
     </div>`;
     bracketEl.innerHTML = html;
@@ -3123,7 +3151,7 @@
   function koThirdSlotHTML(team, selected){
     if(!team) return `<div class="bslot disabled">A definir</div>`;
     return `<div class="bslot ${selected?'selected':''}" data-role="third" data-team="${team.id}">
-      <span style="display:inline-flex;align-items:center;gap:8px;">${badgeHTML(team,'sz-xs')}${esc(koDisplayName(team))}</span>
+      <span style="display:inline-flex;align-items:center;gap:8px;min-width:0;">${nameBlockHTML(team, koDisplayName(team), team, 'sz-xs')}</span>
       <span class="tag">Perdedor semi</span>
     </div>`;
   }
