@@ -45,6 +45,23 @@
   .ov-dot.live{background:#4CAF7A; box-shadow:0 0 0 4px rgba(76,175,122,0.18);}
   .ov-dot.off{background:var(--danger);}
   .ov-loading{font-family:'IBM Plex Mono', monospace; font-size:13px; color:var(--muted); padding:20px 4px;}
+  .ov-next{
+    display:flex; align-items:center; gap:10px;
+    background:rgba(166,67,46,0.12); border:1px solid rgba(166,67,46,0.4);
+    border-radius:10px; padding:9px 13px; margin-bottom:14px;
+    font-size:13.5px; font-weight:600;
+  }
+  .ov-next .live-dot{
+    width:8px; height:8px; border-radius:50%; background:var(--danger); flex:none;
+    box-shadow:0 0 0 4px rgba(166,67,46,0.18);
+    animation:ov-pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes ov-pulse{ 0%,100%{opacity:1;} 50%{opacity:0.35;} }
+  .ov-next b{color:var(--gold-bright);}
+  .ov-next .jornada-tag{
+    margin-left:auto; font-family:'IBM Plex Mono', monospace; font-size:10.5px;
+    color:var(--muted); font-weight:500; white-space:nowrap;
+  }
   .table-wrap{
     overflow-x:auto;
     border:1px solid var(--card-border);
@@ -213,6 +230,7 @@
     </div>
     <span class="ov-dot" id="ovDot"></span>
   </div>
+  <div class="ov-next" id="ovNext" hidden></div>
   <div id="root"><p class="ov-loading">Conectando…</p></div>
 </div>
 
@@ -320,7 +338,7 @@ function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c=>({'&':
 
   function renderStandings(){
     const root = document.getElementById('root');
-    if(!L.teams.length){ root.innerHTML = '<p class="ov-loading">Todavía no hay equipos cargados.</p>'; return; }
+    if(!L.teams.length){ document.getElementById('ovNext').hidden = true; root.innerHTML = '<p class="ov-loading">Todavía no hay equipos cargados.</p>'; return; }
     const table = {};
     L.teams.forEach(t=>{ table[t.id] = { id:t.id, name:displayName(t, L.teams), color:t.color, icon:t.icon, pj:0,pg:0,pe:0,pp:0,gf:0,gc:0,pts:0 }; });
     let playedCount = 0, totalMatches = 0;
@@ -350,6 +368,8 @@ function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c=>({'&':
       return x.name.localeCompare(y.name);
     });
 
+    renderNextBanner(rows);
+
     // terminaron todas las jornadas → pasa solo a la fase final
     if(totalMatches > 0 && playedCount === totalMatches){
       document.getElementById('ovSub').textContent = 'Fase final';
@@ -374,6 +394,43 @@ function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c=>({'&':
     root.innerHTML = '<div class="table-wrap"><table class="standings">'
       + '<thead><tr><th></th><th style="text-align:left">Equipo</th><th>PJ</th><th>PG</th><th>PE</th><th>PP</th><th>GF</th><th>GC</th><th>DG</th><th>PTS</th></tr></thead>'
       + '<tbody>' + body + '</tbody></table></div>';
+  }
+
+  function showNext(el, ta, tb, label){
+    el.hidden = false;
+    el.innerHTML = '<span class="live-dot"></span>EN CANCHA: <b>' + esc(displayName(ta, L.teams)) + '</b> vs <b>' + esc(displayName(tb, L.teams)) + '</b><span class="jornada-tag">' + esc(label) + '</span>';
+  }
+  function renderNextBanner(rows){
+    const el = document.getElementById('ovNext');
+    if(VISTA !== 'liga'){ el.hidden = true; return; }
+    for(const j of fixtures){
+      for(const pair of j.matches){
+        const a = pair[0], b = pair[1];
+        const rec = LR.scores[matchKey(a,b)];
+        const played = rec && rec.a!=='' && rec.a!==undefined && rec.b!=='' && rec.b!==undefined && !isNaN(parseInt(rec.a,10)) && !isNaN(parseInt(rec.b,10));
+        if(!played){
+          const ta = teamByIdL(a), tb = teamByIdL(b);
+          if(ta && tb){ showNext(el, ta, tb, 'Jornada ' + j.jornada); return; }
+        }
+      }
+    }
+    // ya no quedan partidos de jornada: buscar el próximo cruce de la fase final
+    if(rows && rows.length >= 2){
+      if(rows.length >= 4){
+        const s1=rows[0], s2=rows[1], s3=rows[2], s4=rows[3];
+        if(!LP.semiWinners.A){ const ta=teamByIdL(s1.id), tb=teamByIdL(s4.id); if(ta&&tb){ showNext(el, ta, tb, 'Semifinal A'); return; } }
+        if(!LP.semiWinners.B){ const ta=teamByIdL(s2.id), tb=teamByIdL(s3.id); if(ta&&tb){ showNext(el, ta, tb, 'Semifinal B'); return; } }
+        if(!LP.finalWinner){
+          const wa = LP.semiWinners.A ? teamByIdL(LP.semiWinners.A) : null;
+          const wb = LP.semiWinners.B ? teamByIdL(LP.semiWinners.B) : null;
+          if(wa && wb){ showNext(el, wa, wb, 'Gran Final'); return; }
+        }
+      } else if(!LP.finalWinner){
+        const ta = teamByIdL(rows[0].id), tb = teamByIdL(rows[1].id);
+        if(ta && tb){ showNext(el, ta, tb, 'Gran Final'); return; }
+      }
+    }
+    el.hidden = true;
   }
 
   function bslotHTML(team, tag, selected){
