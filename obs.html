@@ -277,6 +277,7 @@ function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c=>({'&':
   // ---- estado recibido (solo lectura) ----
   let L  = { playersPerTeam:1, teams:[] };
   let LR = { scores:{} };
+  let LP = { semiWinners:{A:null,B:null}, finalWinner:null, thirdWinner:null };
   let K  = { playersPerTeam:1, teams:[], numTeams:0 };
   let KR = { winners:{}, thirdWinner:null };
   let fixtures = [];
@@ -315,17 +316,22 @@ function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c=>({'&':
     return t.name && t.name.trim() ? t.name : ('Equipo ' + idx);
   }
 
+  function teamByIdL(id){ return L.teams.find(t=> t.id === id); }
+
   function renderStandings(){
     const root = document.getElementById('root');
     if(!L.teams.length){ root.innerHTML = '<p class="ov-loading">Todavía no hay equipos cargados.</p>'; return; }
     const table = {};
     L.teams.forEach(t=>{ table[t.id] = { id:t.id, name:displayName(t, L.teams), color:t.color, icon:t.icon, pj:0,pg:0,pe:0,pp:0,gf:0,gc:0,pts:0 }; });
+    let playedCount = 0, totalMatches = 0;
     fixtures.forEach(j=>{
       j.matches.forEach(([a,b])=>{
+        totalMatches++;
         const rec = LR.scores[matchKey(a,b)];
         if(!rec || rec.a===undefined || rec.b===undefined || rec.a==='' || rec.b==='') return;
         const sa = parseInt(rec.a,10), sb = parseInt(rec.b,10);
         if(isNaN(sa) || isNaN(sb)) return;
+        playedCount++;
         const A = table[a], B = table[b];
         if(!A || !B) return;
         A.pj++; B.pj++;
@@ -343,6 +349,15 @@ function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c=>({'&':
       if(y.gf !== x.gf) return y.gf - x.gf;
       return x.name.localeCompare(y.name);
     });
+
+    // terminaron todas las jornadas → pasa solo a la fase final
+    if(totalMatches > 0 && playedCount === totalMatches){
+      document.getElementById('ovSub').textContent = 'Fase final';
+      root.innerHTML = renderPlayoffsView(rows);
+      return;
+    }
+    document.getElementById('ovSub').textContent = 'Tabla de posiciones';
+
     const medals = ['\u{1F947}','\u{1F948}','\u{1F949}'];
     let body = '';
     rows.forEach((r, idx)=>{
@@ -359,6 +374,71 @@ function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c=>({'&':
     root.innerHTML = '<div class="table-wrap"><table class="standings">'
       + '<thead><tr><th></th><th style="text-align:left">Equipo</th><th>PJ</th><th>PG</th><th>PE</th><th>PP</th><th>GF</th><th>GC</th><th>DG</th><th>PTS</th></tr></thead>'
       + '<tbody>' + body + '</tbody></table></div>';
+  }
+
+  function bslotHTML(team, tag, selected){
+    if(!team) return '<div class="bslot disabled">A definir</div>';
+    return '<div class="bslot ' + (selected?'selected':'') + '">'
+      + '<span style="display:inline-flex;align-items:center;gap:8px;">' + badgeHTML(team,'sz-xs') + esc(team.name) + '</span>'
+      + (tag ? '<span class="tag">' + tag + '</span>' : '')
+      + '</div>';
+  }
+  function champBoxHTML(champTeam){
+    return '<div class="bracket-col"><div class="bcard"><div class="blabel">🏆 Campeón</div>'
+      + '<div class="bslot ' + (champTeam?'selected':'disabled') + '">'
+      + (champTeam ? ('<span style="display:inline-flex;align-items:center;gap:8px;">' + badgeHTML(champTeam,'sz-xs') + esc(champTeam.name) + '</span>') : 'A definir')
+      + '</div></div></div>';
+  }
+  function renderPlayoffsView(standings){
+    const n = standings.length;
+    const champTeam = LP.finalWinner ? teamByIdL(LP.finalWinner) : null;
+    const champBox = champBoxHTML(champTeam ? { id:champTeam.id, name:displayName(champTeam, L.teams), icon:champTeam.icon } : null);
+
+    if(n < 4){
+      const top1 = standings[0] ? teamByIdL(standings[0].id) : null;
+      const top2 = standings[1] ? teamByIdL(standings[1].id) : null;
+      let finalHtml;
+      if(top1 && top2){
+        finalHtml = bslotHTML({id:top1.id, icon:top1.icon, name:displayName(top1, L.teams)}, '1º', LP.finalWinner===top1.id)
+          + bslotHTML({id:top2.id, icon:top2.icon, name:displayName(top2, L.teams)}, '2º', LP.finalWinner===top2.id);
+      } else {
+        finalHtml = '<div class="bslot disabled">Faltan equipos</div>';
+      }
+      return '<div class="bracket-scroll"><div class="bracket" style="--cols:2;">'
+        + '<div class="bracket-col final"><div class="bcard final-card"><div class="blabel">Gran Final</div><div>' + finalHtml + '</div></div></div>'
+        + champBox
+        + '</div></div>';
+    }
+
+    const top4 = standings.slice(0,4);
+    const seed = { s1:top4[0], s2:top4[1], s3:top4[2], s4:top4[3] };
+    const semiAWinnerId = LP.semiWinners.A, semiBWinnerId = LP.semiWinners.B;
+    const semiAHtml = bslotHTML(seed.s1, '1º', semiAWinnerId===(seed.s1&&seed.s1.id)) + bslotHTML(seed.s4, '4º', semiAWinnerId===(seed.s4&&seed.s4.id));
+    const semiBHtml = bslotHTML(seed.s2, '2º', semiBWinnerId===(seed.s2&&seed.s2.id)) + bslotHTML(seed.s3, '3º', semiBWinnerId===(seed.s3&&seed.s3.id));
+    const winnerA = semiAWinnerId ? teamByIdL(semiAWinnerId) : null;
+    const winnerB = semiBWinnerId ? teamByIdL(semiBWinnerId) : null;
+    const loserA = (semiAWinnerId && seed.s1 && seed.s4) ? (semiAWinnerId===seed.s1.id ? seed.s4 : seed.s1) : null;
+    const loserB = (semiBWinnerId && seed.s2 && seed.s3) ? (semiBWinnerId===seed.s2.id ? seed.s3 : seed.s2) : null;
+    let finalHtml;
+    if(winnerA || winnerB){
+      finalHtml = bslotHTML(winnerA?{id:winnerA.id, icon:winnerA.icon, name:displayName(winnerA, L.teams)}:null, 'Ganador Semi A', LP.finalWinner===(winnerA&&winnerA.id))
+        + bslotHTML(winnerB?{id:winnerB.id, icon:winnerB.icon, name:displayName(winnerB, L.teams)}:null, 'Ganador Semi B', LP.finalWinner===(winnerB&&winnerB.id));
+    } else {
+      finalHtml = '<div class="bslot disabled">A definir</div><div class="bslot disabled">A definir</div>';
+    }
+    let thirdHtml;
+    if(loserA || loserB){
+      thirdHtml = bslotHTML(loserA, 'Perdedor Semi A', LP.thirdWinner===(loserA&&loserA.id)) + bslotHTML(loserB, 'Perdedor Semi B', LP.thirdWinner===(loserB&&loserB.id));
+    } else {
+      thirdHtml = '<div class="bslot disabled">Se define al terminar las semis</div>';
+    }
+    return '<div class="bracket-scroll"><div class="bracket" style="--cols:3;">'
+      + '<div class="bracket-col"><div class="bcard"><div class="blabel">Semifinal A</div><div>' + semiAHtml + '</div></div>'
+      + '<div class="bcard"><div class="blabel">Semifinal B</div><div>' + semiBHtml + '</div></div></div>'
+      + '<div class="bracket-col final"><div class="bcard final-card"><div class="blabel">Gran Final</div><div>' + finalHtml + '</div></div></div>'
+      + champBox
+      + '</div></div>'
+      + '<div class="bcard third-place" style="max-width:340px;margin-top:20px;"><div class="blabel">3º puesto</div><div>' + thirdHtml + '</div></div>';
   }
 
   function koSize(n){ let sz = 2; while(sz < n) sz *= 2; return sz; }
@@ -489,6 +569,7 @@ function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c=>({'&':
   function applySnap(secs){
     if(secs.liga){ L = secs.liga; fixtures = buildFixtures(); }
     if(secs.liga_res){ LR = secs.liga_res; }
+    if(secs.liga_po){ LP = secs.liga_po; }
     if(secs.ko){ K = secs.ko; K.numTeams = K.teams.length; }
     if(secs.ko_res){ KR = secs.ko_res; }
     render();
@@ -496,6 +577,7 @@ function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c=>({'&':
   function applySec(name, data){
     if(name === 'liga'){ L = data; fixtures = buildFixtures(); }
     else if(name === 'liga_res'){ LR = data; }
+    else if(name === 'liga_po'){ LP = data; }
     else if(name === 'ko'){ K = data; K.numTeams = K.teams.length; }
     else if(name === 'ko_res'){ KR = data; }
     else return;
