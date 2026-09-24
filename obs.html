@@ -94,22 +94,45 @@
   @keyframes champ-in{ from{opacity:0; transform:translateY(14px) scale(0.92);} to{opacity:1; transform:translateY(0) scale(1);} }
   @keyframes champ-glow{ 0%{box-shadow:0 0 0 0 rgba(201,162,39,0.35);} 100%{box-shadow:0 0 0 22px rgba(201,162,39,0);} }
   @keyframes champ-shine{ 0%{background-position:120% 0;} 100%{background-position:-40% 0;} }
+  .ov-confetti{ position:absolute; inset:0; overflow:hidden; pointer-events:none; z-index:1; }
   .confetti{
-    position:absolute; top:-14px; width:7px; height:12px; z-index:1;
-    background:var(--gold); opacity:0.85; border-radius:1px;
-    animation:champ-fall 2.6s ease-in forwards;
+    position:absolute; top:-6%; width:8px; height:14px;
+    background:var(--gold); opacity:0.9; border-radius:1px;
+    animation:champ-fall var(--d,4s) linear var(--dl,0s) infinite;
   }
   .confetti.c1{background:var(--gold-bright);}
   .confetti.c2{background:#EDE8DC;}
-  .confetti.c3{background:var(--gold-dim); width:6px; height:9px;}
-  .confetti.c4{background:var(--gold-bright); width:8px; height:8px; border-radius:50%;}
+  .confetti.c3{background:var(--gold-dim); width:6px; height:10px;}
+  .confetti.c4{background:var(--gold-bright); width:9px; height:9px; border-radius:50%;}
   @keyframes champ-fall{
-    0%{ transform:translateY(0) rotate(0deg); opacity:0.9; }
-    100%{ transform:translateY(190px) rotate(340deg); opacity:0; }
+    0%{ top:-6%; transform:translateX(0) rotate(0deg); }
+    50%{ transform:translateX(var(--sw,14px)) rotate(270deg); }
+    100%{ top:106%; transform:translateX(0) rotate(540deg); }
   }
-  @media (prefers-reduced-motion: reduce){
-    .ov-champ-badge, .ov-champ-label, .ov-champ-name, .confetti, .ov-champ-badge::after{ animation:none !important; }
+  .ov-champ-trophy{
+    position:relative; z-index:2; font-size:54px; line-height:1; margin-bottom:10px;
+    animation:champ-bounce 1.6s ease-in-out infinite;
   }
+  @keyframes champ-bounce{ 0%,100%{ transform:translateY(0) rotate(-6deg); } 50%{ transform:translateY(-10px) rotate(6deg); } }
+  .ov-champ-rays{
+    position:absolute; left:50%; top:50%; width:460px; height:460px; margin:-230px 0 0 -230px; z-index:-1; pointer-events:none;
+    background:repeating-conic-gradient(from 0deg, rgba(228,196,101,0.22) 0deg 8deg, transparent 8deg 24deg);
+    -webkit-mask-image:radial-gradient(circle, #000 0%, transparent 68%);
+    mask-image:radial-gradient(circle, #000 0%, transparent 68%);
+    animation:champ-spin 14s linear infinite;
+  }
+  @keyframes champ-spin{ to{ transform:rotate(360deg); } }
+  .ov-champ-players{
+    position:relative; z-index:2; display:flex; flex-wrap:wrap; justify-content:center;
+    gap:10px; margin-top:16px; max-width:100%;
+  }
+  .ov-champ-player{
+    font-family:'Bebas Neue', sans-serif; font-size:clamp(20px,4vw,28px); letter-spacing:0.03em; color:var(--ink);
+    padding:4px 16px 2px; border:1px solid rgba(201,162,39,0.55); border-radius:999px;
+    background:rgba(201,162,39,0.10);
+    animation:champ-in 0.6s var(--pd,0.5s) cubic-bezier(.2,.9,.3,1.2) both, champ-chip 2.4s var(--pd,0.5s) ease-in-out infinite;
+  }
+  @keyframes champ-chip{ 0%,100%{ box-shadow:0 0 0 0 rgba(228,196,101,0); } 50%{ box-shadow:0 0 14px 2px rgba(228,196,101,0.45); } }
   .table-wrap{
     overflow-x:auto;
     border:1px solid var(--card-border);
@@ -493,14 +516,23 @@ function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c=>({'&':
     document.getElementById('ovSub').textContent = '🏆 Campeón';
     const confettiClasses = ['c0','c1','c2','c3','c4'];
     let confetti = '';
-    for(let i=0;i<12;i++){
-      confetti += '<span class="confetti ' + confettiClasses[i % confettiClasses.length] + '" style="left:' + (4 + i*8) + '%; animation-delay:' + (i*0.12).toFixed(2) + 's;"></span>';
+    for(let i=0;i<30;i++){
+      const d = 3.2 + (i % 5) * 0.5;
+      const dl = -((i * 0.61) % d);
+      const sw = ((i % 2) ? 1 : -1) * (10 + (i % 4) * 6);
+      confetti += '<span class="confetti ' + confettiClasses[i % confettiClasses.length] + '" style="left:' + ((i * 37) % 100) + '%; --d:' + d.toFixed(2) + 's; --dl:' + dl.toFixed(2) + 's; --sw:' + sw + 'px;"></span>';
     }
+    const names = (champTeam.players || []).map(p=> String(p == null ? '' : p).trim()).filter(Boolean);
+    const playersHtml = names.length
+      ? '<div class="ov-champ-players">' + names.map((n,i)=> '<span class="ov-champ-player" style="--pd:' + (0.5 + i * 0.15).toFixed(2) + 's;">' + esc(n) + '</span>').join('') + '</div>'
+      : '';
     return '<div class="ov-champ">'
-      + confetti
-      + '<div class="ov-champ-badge">' + badgeHTML(champTeam, 'sz-lg') + '</div>'
+      + '<div class="ov-confetti">' + confetti + '</div>'
+      + '<div class="ov-champ-trophy">🏆</div>'
+      + '<div class="ov-champ-badge"><div class="ov-champ-rays"></div>' + badgeHTML(champTeam, 'sz-lg') + '</div>'
       + '<div class="ov-champ-label">🏆 CAMPEÓN ' + esc(modeLabel) + '</div>'
       + '<div class="ov-champ-name">' + esc(champTeam.name) + '</div>'
+      + playersHtml
       + '</div>';
   }
   function champBoxHTML(champTeam){
@@ -513,7 +545,7 @@ function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c=>({'&':
     const n = standings.length;
     const champTeam = LP.finalWinner ? teamByIdL(LP.finalWinner) : null;
     if(champTeam){
-      return renderChampionScreen({ id:champTeam.id, name:displayName(champTeam, L.teams), icon:champTeam.icon }, 'DE LA LIGA');
+      return renderChampionScreen({ id:champTeam.id, name:displayName(champTeam, L.teams), icon:champTeam.icon, players:champTeam.players }, 'DE LA LIGA');
     }
     const champBox = champBoxHTML(null);
 
@@ -644,7 +676,7 @@ function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c=>({'&':
     const champWinnerIdEarly = koWinner(totalRounds-1, 0);
     if(champWinnerIdEarly){
       const ct = koTeamById(champWinnerIdEarly);
-      if(ct){ root.innerHTML = renderChampionScreen({ id:ct.id, name:displayName(ct, K.teams), icon:ct.icon }, 'DE LA ELIMINATORIA'); return; }
+      if(ct){ root.innerHTML = renderChampionScreen({ id:ct.id, name:displayName(ct, K.teams), icon:ct.icon, players:ct.players }, 'DE LA ELIMINATORIA'); return; }
     }
     let html = '<div class="bracket-scroll"><div class="bracket" style="--cols:' + (totalRounds+1) + ';">';
     for(let r=0;r<totalRounds;r++){
