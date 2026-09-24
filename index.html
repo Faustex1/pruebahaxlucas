@@ -3311,9 +3311,10 @@
   }
   function switchView(v){
     if(v === state.view || switching || !VIEW_ELS[v]) return;
+    if(!VIEW_ELS[state.view]) state.view = 'group';
     const outEl = document.getElementById(VIEW_ELS[state.view]);
     const heroH = document.querySelector('.hero').offsetHeight;
-    const finish = ()=>{
+    const finishInner = ()=>{
       outEl.classList.remove('view-leave');
       state.view = v;
       saveState();
@@ -3327,8 +3328,8 @@
         popStats();
       }
       window.scrollTo({ top: Math.min(window.scrollY, heroH), behavior: 'auto' });
-      switching = false;
     };
+    const finish = ()=>{ try{ finishInner(); } finally { switching = false; } };
     switching = true;
     // marcar la pestaña nueva al instante
     document.querySelectorAll('.mode-tab').forEach(tab=>{
@@ -3717,6 +3718,7 @@
     const numTeams = state.numTeams, playersPerTeam = state.playersPerTeam;
     const keepKo = state.ko;
     const keepRegistro = state.registro; // las inscripciones (usuarios y contraseñas) no se borran al reiniciar
+    const keepView = state.view; // la sección en la que estás también se mantiene
     state = defaultState();
     state.numTeams = numTeams;
     state.playersPerTeam = playersPerTeam;
@@ -3724,6 +3726,7 @@
     for(let i=0;i<numTeams;i++) state.teams.push(defaultTeam(i, playersPerTeam));
     state.ko = keepKo;
     state.registro = keepRegistro;
+    state.view = keepView;
     regenerateFixtures();
     saveState();
     document.getElementById('namesTextarea').value = '';
