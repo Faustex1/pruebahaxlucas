@@ -134,6 +134,22 @@
     animation:champ-in 0.6s var(--pd,0.5s) cubic-bezier(.2,.9,.3,1.2) both, champ-chip 2.4s var(--pd,0.5s) ease-in-out infinite;
   }
   @keyframes champ-chip{ 0%,100%{ box-shadow:0 0 0 0 rgba(228,196,101,0); } 50%{ box-shadow:0 0 14px 2px rgba(228,196,101,0.45); } }
+  .ov-podium{
+    position:relative; z-index:2; display:flex; flex-wrap:wrap; justify-content:center;
+    gap:16px; margin-top:24px; width:100%;
+  }
+  .ov-pod{
+    --pc:#C0C8D0; --pg:rgba(192,200,208,0.45);
+    flex:1 1 240px; max-width:340px; display:flex; flex-direction:column; align-items:center; text-align:center;
+    padding:14px 14px 16px; border:1px solid var(--pc); border-radius:14px; background:rgba(255,255,255,0.04);
+    animation:champ-in 0.6s var(--pd,1.3s) cubic-bezier(.2,.9,.3,1.2) both, champ-podium 2.8s var(--pd,1.3s) ease-in-out infinite;
+  }
+  .ov-pod.third{ --pc:#CD7F32; --pg:rgba(205,127,50,0.45); }
+  .ov-pod-label{ font-family:'IBM Plex Mono', monospace; font-size:12px; letter-spacing:0.12em; font-weight:700; color:var(--pc); margin-bottom:8px; }
+  .ov-pod-name{ font-family:'Bebas Neue', sans-serif; font-size:clamp(24px,4.5vw,32px); letter-spacing:0.02em; color:var(--ink); margin-top:6px; }
+  .ov-pod .ov-champ-players{ gap:6px; margin-top:8px; }
+  .ov-pod .ov-champ-player{ font-size:18px; padding:2px 12px 0; border-color:var(--pc); background:rgba(255,255,255,0.05); animation:none; }
+  @keyframes champ-podium{ 0%,100%{ box-shadow:0 0 0 0 rgba(255,255,255,0); } 50%{ box-shadow:0 0 16px 1px var(--pg); } }
   .table-wrap{
     overflow-x:auto;
     border:1px solid var(--card-border);
@@ -512,7 +528,18 @@ function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c=>({'&':
       + (tag ? '<span class="tag">' + tag + '</span>' : '')
       + '</div>';
   }
-  function renderChampionScreen(champTeam, modeLabel){
+  function podiumCardHTML(team, kind, delay){
+    if(!team) return '';
+    const names = (team.players || []).map(p=> String(p == null ? '' : p).trim()).filter(Boolean);
+    const chips = names.length ? '<div class="ov-champ-players">' + names.map(n=> '<span class="ov-champ-player">' + esc(n) + '</span>').join('') + '</div>' : '';
+    return '<div class="ov-pod ' + kind + '" style="--pd:' + delay.toFixed(2) + 's;">'
+      + '<div class="ov-pod-label">' + (kind === 'second' ? '🥈 2º PUESTO' : '🥉 3º PUESTO') + '</div>'
+      + badgeHTML(team, 'sz-md')
+      + '<div class="ov-pod-name">' + esc(team.name) + '</div>'
+      + chips
+      + '</div>';
+  }
+  function renderChampionScreen(champTeam, modeLabel, podium){
     document.getElementById('ovNext').hidden = true;
     document.getElementById('ovSub').textContent = '🏆 Campeón';
     const confettiClasses = ['c0','c1','c2','c3','c4'];
@@ -527,6 +554,10 @@ function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c=>({'&':
     const playersHtml = names.length
       ? '<div class="ov-champ-players">' + names.map((n,i)=> '<span class="ov-champ-player" style="--pd:' + (0.5 + i * 0.15).toFixed(2) + 's;">' + esc(n) + '</span>').join('') + '</div>'
       : '';
+    const pod = podium || {};
+    const podiumHtml = (pod.second || pod.third)
+      ? '<div class="ov-podium">' + podiumCardHTML(pod.second, 'second', 1.3) + podiumCardHTML(pod.third, 'third', 1.6) + '</div>'
+      : '';
     return '<div class="ov-champ">'
       + '<div class="ov-confetti">' + confetti + '</div>'
       + '<div class="ov-champ-trophy">🏆</div>'
@@ -534,6 +565,7 @@ function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c=>({'&':
       + '<div class="ov-champ-label">🏆 CAMPEÓN ' + esc(modeLabel) + '</div>'
       + '<div class="ov-champ-name">' + esc(champTeam.name) + '</div>'
       + playersHtml
+      + podiumHtml
       + '</div>';
   }
   function champBoxHTML(champTeam){
@@ -546,7 +578,20 @@ function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c=>({'&':
     const n = standings.length;
     const champTeam = LP.finalWinner ? teamByIdL(LP.finalWinner) : null;
     if(champTeam){
-      return renderChampionScreen({ id:champTeam.id, name:displayName(champTeam, L.teams), icon:champTeam.icon, players:champTeam.players }, 'DE LA LIGA');
+      let secondId = null;
+      if(n < 4){
+        const ids = [standings[0] && standings[0].id, standings[1] && standings[1].id];
+        secondId = ids.find(x=> x && x !== champTeam.id) || null;
+      } else {
+        const wA = LP.semiWinners.A, wB = LP.semiWinners.B;
+        secondId = (wA === champTeam.id) ? wB : ((wB === champTeam.id) ? wA : null);
+      }
+      const podTeam = (id)=>{ const t = id ? teamByIdL(id) : null; return t ? { id:t.id, name:displayName(t, L.teams), icon:t.icon, players:t.players } : null; };
+      return renderChampionScreen(
+        { id:champTeam.id, name:displayName(champTeam, L.teams), icon:champTeam.icon, players:champTeam.players },
+        'DE LA LIGA',
+        { second: podTeam(secondId), third: podTeam(n >= 4 ? LP.thirdWinner : null) }
+      );
     }
     const champBox = champBoxHTML(null);
 
@@ -677,7 +722,17 @@ function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c=>({'&':
     const champWinnerIdEarly = koWinner(totalRounds-1, 0);
     if(champWinnerIdEarly){
       const ct = koTeamById(champWinnerIdEarly);
-      if(ct){ root.innerHTML = renderChampionScreen({ id:ct.id, name:displayName(ct, K.teams), icon:ct.icon, players:ct.players }, 'DE LA ELIMINATORIA'); return; }
+      if(ct){
+        const podTeam = (t)=> t ? { id:t.id, name:displayName(t, K.teams), icon:t.icon, players:t.players } : null;
+        const second = koLoser(totalRounds-1, 0);
+        const third = (totalRounds >= 2 && KR.thirdWinner) ? koTeamById(KR.thirdWinner) : null;
+        root.innerHTML = renderChampionScreen(
+          { id:ct.id, name:displayName(ct, K.teams), icon:ct.icon, players:ct.players },
+          'DE LA ELIMINATORIA',
+          { second: podTeam(second), third: podTeam(third) }
+        );
+        return;
+      }
     }
     let html = '<div class="bracket-scroll"><div class="bracket" style="--cols:' + (totalRounds+1) + ';">';
     for(let r=0;r<totalRounds;r++){
