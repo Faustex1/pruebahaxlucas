@@ -1364,6 +1364,17 @@
         </table>
       </div>
       <p class="rules-line" id="regEmptyNote">Todavía no creaste ningún usuario.</p>
+
+      <hr class="divider-line">
+
+      <label class="names-label">Excel de inscriptos</label>
+      <div class="config-actions" style="margin-top:0;">
+        <button class="btn btn-small" type="button" id="regExportBtn">⬇️ Descargar Excel</button>
+        <button class="btn btn-small" type="button" id="regImportBtn">⬆️ Subir Excel</button>
+        <input type="file" id="regImportFile" accept=".xlsx,.xls,.csv" hidden>
+      </div>
+      <p class="status-msg" id="regExcelStatus" aria-live="polite"></p>
+      <p class="rules-line">Descargá la lista, editala en Excel (cambiá nombres o contraseñas, agregá o borrá filas) y volvé a subirla: la lista de acá se reemplaza por la del archivo.</p>
     </div>
   </section>
 </div><!-- /viewRegistro -->
@@ -3424,6 +3435,111 @@
       renderRegistro();
     }
   });
+  // ---- Excel de inscriptos (descargar / editar / volver a subir) ----
+  const XLSX_CDNS = [
+    'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
+    'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js'
+  ];
+  function loadXlsx(){
+    if(window.XLSX) return Promise.resolve(window.XLSX);
+    return new Promise((resolve, reject)=>{
+      let i = 0;
+      const next = ()=>{
+        if(i >= XLSX_CDNS.length){ reject(new Error('cdn')); return; }
+        const sc = document.createElement('script');
+        sc.src = XLSX_CDNS[i++];
+        sc.async = true;
+        sc.onload = ()=>{ window.XLSX ? resolve(window.XLSX) : next(); };
+        sc.onerror = ()=>{ sc.remove(); next(); };
+        document.head.appendChild(sc);
+      };
+      next();
+    });
+  }
+  function normTxt(s){ return String(s == null ? '' : s).trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
+  function cellTxt(v){ return String(v == null ? '' : v).trim(); }
+  function parseRegRows(rows){
+    let col = { n:0, p:1, a:2 }, start = 0;
+    if(rows.length){
+      const h = rows[0].map(normTxt);
+      const fn = h.findIndex(x=> x === 'nombre' || x === 'usuario' || x === 'name');
+      const fp = h.findIndex(x=> x === 'contrasena' || x === 'clave' || x === 'password' || x === 'pass');
+      if(fn >= 0 && fp >= 0){ col = { n:fn, p:fp, a:h.findIndex(x=> x === 'anotado' || x === 'estado') }; start = 1; }
+    }
+    const prev = new Map(state.registro.usuarios.map(u=> [u.contrasena, u]));
+    const seen = new Set(), list = [];
+    let dup = 0, incomplete = 0;
+    for(let i = start; i < rows.length; i++){
+      const r = rows[i] || [];
+      const nombre = cellTxt(r[col.n]).slice(0,40);
+      const pass = cellTxt(r[col.p]).slice(0,30);
+      if(!nombre && !pass) continue;
+      if(!nombre || !pass){ incomplete++; continue; }
+      if(seen.has(pass)){ dup++; continue; }
+      seen.add(pass);
+      const old = prev.get(pass);
+      let anotado = old ? !!old.anotado : false;
+      if(col.a >= 0){
+        const v = normTxt(r[col.a]);
+        anotado = ['si','s','yes','y','true','1','x','ok','anotado'].includes(v) || v.includes('✅');
+      }
+      list.push({
+        id: old ? old.id : newRegId(),
+        nombre, contrasena: pass, anotado,
+        anotadoEn: anotado ? ((old && old.anotadoEn) || Date.now()) : null
+      });
+    }
+    return { list, dup, incomplete };
+  }
+  function regExcelMsg(text, warn){
+    const el = document.getElementById('regExcelStatus');
+    el.textContent = text;
+    el.classList.toggle('warn', !!warn);
+  }
+  document.getElementById('regExportBtn').addEventListener('click', async ()=>{
+    let X;
+    try{ X = await loadXlsx(); }
+    catch(err){ regExcelMsg('No se pudo cargar el conversor de Excel. Revisá tu internet y probá de nuevo.', true); return; }
+    const list = state.registro.usuarios;
+    const aoa = [['Nombre', 'Contraseña', 'Anotado']].concat(list.map(u=> [u.nombre, u.contrasena, u.anotado ? 'Sí' : 'No']));
+    const ws = X.utils.aoa_to_sheet(aoa);
+    for(let r = 1; r < aoa.length; r++){
+      const c = ws[X.utils.encode_cell({ r:r, c:1 })];
+      if(c){ c.t = 's'; c.z = '@'; } // contraseñas como texto (Excel no les saca ceros)
+    }
+    ws['!cols'] = [{ wch:24 }, { wch:18 }, { wch:10 }];
+    const wb = X.utils.book_new();
+    X.utils.book_append_sheet(wb, ws, 'Inscripciones');
+    X.writeFile(wb, 'inscripciones.xlsx');
+    regExcelMsg(list.length ? '✅ Descargado: ' + list.length + (list.length === 1 ? ' usuario.' : ' usuarios.') : '✅ Descargado el Excel vacío (solo encabezados), listo para completar.', false);
+  });
+  document.getElementById('regImportBtn').addEventListener('click', ()=>{
+    document.getElementById('regImportFile').click();
+  });
+  document.getElementById('regImportFile').addEventListener('change', async (e)=>{
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if(!file) return;
+    let X;
+    try{ X = await loadXlsx(); }
+    catch(err){ regExcelMsg('No se pudo cargar el conversor de Excel. Revisá tu internet y probá de nuevo.', true); return; }
+    let rows;
+    try{
+      const wb = X.read(await file.arrayBuffer(), { type:'array' });
+      rows = X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header:1, defval:'', raw:true });
+    }catch(err){ regExcelMsg('No se pudo leer ese archivo. Tiene que ser un Excel (.xlsx) o un CSV.', true); return; }
+    const res = parseRegRows(rows);
+    if(!res.list.length){ regExcelMsg('No encontré usuarios en el archivo. Tiene que tener las columnas Nombre y Contraseña.', true); return; }
+    const before = state.registro.usuarios.length;
+    if(!(await askConfirm('¿Reemplazar la lista actual (' + before + ' usuarios) por la del archivo (' + res.list.length + ' usuarios)?' + liveNote(), 'Sí, reemplazar'))) return;
+    state.registro.usuarios = res.list;
+    saveState();
+    renderRegistro();
+    let msg = '✅ Lista actualizada: ' + res.list.length + (res.list.length === 1 ? ' usuario.' : ' usuarios.');
+    if(res.dup) msg += ' Se omitieron ' + res.dup + ' fila(s) con contraseña repetida.';
+    if(res.incomplete) msg += ' Se omitieron ' + res.incomplete + ' fila(s) sin nombre o sin contraseña.';
+    regExcelMsg(msg, !!(res.dup || res.incomplete));
+  });
   document.getElementById('regLinkCopyBtn').addEventListener('click', async ()=>{
     const input = document.getElementById('regLinkInput');
     const ok = await copyText(input.value, input);
@@ -3600,12 +3716,14 @@
     if(!(await askConfirm('¿Reiniciar todos los resultados, nombres y el bracket de la liga?' + liveNote()))) return;
     const numTeams = state.numTeams, playersPerTeam = state.playersPerTeam;
     const keepKo = state.ko;
+    const keepRegistro = state.registro; // las inscripciones (usuarios y contraseñas) no se borran al reiniciar
     state = defaultState();
     state.numTeams = numTeams;
     state.playersPerTeam = playersPerTeam;
     state.teams = [];
     for(let i=0;i<numTeams;i++) state.teams.push(defaultTeam(i, playersPerTeam));
     state.ko = keepKo;
+    state.registro = keepRegistro;
     regenerateFixtures();
     saveState();
     document.getElementById('namesTextarea').value = '';
