@@ -1433,6 +1433,45 @@
         <div class="rules-line" style="margin-bottom:6px;">Actividad reciente del chat</div>
         <div id="twitchLog" style="max-height:180px; overflow-y:auto; font-family:'IBM Plex Mono',monospace; font-size:12.5px; line-height:1.7; background:var(--paper-2); border:1px solid var(--card-border); border-radius:8px; padding:8px 10px;"></div>
       </div>
+
+      <hr class="divider-line">
+
+      <label class="names-label">Ver el chat de Kick acá mismo (sin backend, sin pedirle nada al streamer)</label>
+      <p class="rules-line">Mirar un chat de Kick es público — no hace falta cuenta ni permiso de nadie. Poné el nombre del canal y vas a ver su chat en vivo, acá abajo, al lado de la tabla de Inscripciones. Cuando alguien escriba el comando, marcalo con el botón "Marcar" de la fila de ese usuario — el navegador no deja leer automáticamente lo que hay dentro del chat embebido, así que este paso queda manual.</p>
+      <div class="config-row">
+        <div class="config-field">
+          <label for="kickViewChannelInput">Canal de Kick</label>
+          <input type="text" id="kickViewChannelInput" placeholder="ej: xqc" autocomplete="off" spellcheck="false">
+        </div>
+        <button class="btn btn-primary" type="button" id="kickViewShowBtn">👁️ Mostrar chat</button>
+        <button class="btn btn-small btn-danger" type="button" id="kickViewHideBtn" hidden>Ocultar</button>
+      </div>
+      <p class="status-msg" id="kickViewStatus"></p>
+      <div id="kickViewWrap" hidden style="margin-top:10px; height:420px; border:1px solid var(--card-border); border-radius:8px; overflow:hidden;">
+        <iframe id="kickViewFrame" style="width:100%; height:100%; border:0;" title="Chat de Kick"></iframe>
+      </div>
+
+      <hr class="divider-line">
+
+      <label class="names-label">Auto-anotación real (necesita el puente + que el streamer autorice una vez)</label>
+      <p class="rules-line">Esta es la única forma de que quede marcado 100% solo, sin que vos tengas que apretar nada mientras mirás el chat. A cambio, pide el puente (Cloudflare Worker) y que el dueño del canal apruebe una sola vez — mirá las instrucciones que te pasé aparte.</p>
+      <div class="config-row">
+        <div class="config-field">
+          <label for="kickWorkerInput">URL del puente (Cloudflare Worker)</label>
+          <input type="text" id="kickWorkerInput" placeholder="https://tu-worker.workers.dev" autocomplete="off" spellcheck="false">
+        </div>
+        <div class="config-field">
+          <label for="kickSecretInput">Clave del puente</label>
+          <input type="password" id="kickSecretInput" placeholder="la que pusiste en KICK_SHARED_SECRET" autocomplete="off" spellcheck="false">
+        </div>
+        <button class="btn btn-primary" type="button" id="kickConnectBtn">🔌 Conectar</button>
+        <button class="btn btn-small btn-danger" type="button" id="kickDisconnectBtn" hidden>Desconectar</button>
+      </div>
+      <p class="status-msg" id="kickStatus"></p>
+      <div id="kickLogWrap" hidden style="margin-top:10px;">
+        <div class="rules-line" style="margin-bottom:6px;">Actividad reciente del chat</div>
+        <div id="kickLog" style="max-height:180px; overflow-y:auto; font-family:'IBM Plex Mono',monospace; font-size:12.5px; line-height:1.7; background:var(--paper-2); border:1px solid var(--card-border); border-radius:8px; padding:8px 10px;"></div>
+      </div>
     </div>
   </section>
 </div><!-- /viewRegistro -->
@@ -3340,7 +3379,10 @@
       return '<tr>'
         + '<td class="name">' + esc(u.nombre) + '</td>'
         + '<td>' + estado + '</td>'
-        + '<td><button class="btn btn-small btn-danger reg-del-btn" type="button" data-id="' + u.id + '">Borrar</button></td>'
+        + '<td>'
+          + '<button class="btn btn-small reg-toggle-btn" type="button" data-id="' + u.id + '">' + (u.anotado ? 'Quitar' : '✅ Marcar') + '</button>'
+          + '<button class="btn btn-small btn-danger reg-del-btn" type="button" data-id="' + u.id + '">Borrar</button>'
+        + '</td>'
         + '</tr>';
     }).join('');
     const chk = document.getElementById('regOpenToggle');
@@ -3368,6 +3410,17 @@
     renderRegistro();
   });
   document.getElementById('regTableBody').addEventListener('click', async (e)=>{
+    const toggle = e.target.closest('.reg-toggle-btn');
+    if(toggle){
+      const u = state.registro.usuarios.find(x=> x.id === toggle.dataset.id);
+      if(u){
+        u.anotado = !u.anotado;
+        u.anotadoEn = u.anotado ? Date.now() : null;
+        saveState();
+        renderRegistro();
+      }
+      return;
+    }
     const del = e.target.closest('.reg-del-btn');
     if(del){
       if(!(await askConfirm('¿Borrar este usuario de inscripciones?', 'Sí, borrar'))) return;
@@ -3506,6 +3559,144 @@
       if(reconnectTimer){ clearTimeout(reconnectTimer); reconnectTimer = null; }
       try{ if(ws) ws.close(); }catch(e){}
       ws = null;
+      setStatus('Desconectado.');
+      setConnectedUI(false);
+    }
+
+    connectBtn.addEventListener('click', connect);
+    disconnectBtn.addEventListener('click', disconnect);
+  })();
+
+  // ---- Kick: ver el chat embebido (público, sin backend) ----
+  (function kickViewEmbed(){
+    const channelInput = document.getElementById('kickViewChannelInput');
+    const showBtn = document.getElementById('kickViewShowBtn');
+    const hideBtn = document.getElementById('kickViewHideBtn');
+    const statusEl = document.getElementById('kickViewStatus');
+    const wrap = document.getElementById('kickViewWrap');
+    const frame = document.getElementById('kickViewFrame');
+    if(!channelInput || !showBtn) return;
+
+    channelInput.value = LS.get('copa_kick_view_channel') || '';
+
+    showBtn.addEventListener('click', ()=>{
+      const channel = channelInput.value.trim().toLowerCase().replace(/^#/, '');
+      if(!channel){ statusEl.textContent = 'Poné el nombre del canal primero.'; statusEl.classList.add('warn'); return; }
+      LS.set('copa_kick_view_channel', channel);
+      frame.src = 'https://kick.com/popout/' + encodeURIComponent(channel) + '/chat';
+      wrap.hidden = false;
+      showBtn.hidden = true;
+      hideBtn.hidden = false;
+      channelInput.readOnly = true;
+      statusEl.textContent = '';
+      statusEl.classList.remove('warn');
+    });
+    hideBtn.addEventListener('click', ()=>{
+      frame.src = 'about:blank';
+      wrap.hidden = true;
+      showBtn.hidden = false;
+      hideBtn.hidden = true;
+      channelInput.readOnly = false;
+    });
+  })();
+
+  // ---- Kick: auto-anotación vía el puente (Cloudflare Worker) ----
+  (function kickAutoReg(){
+    const workerInput = document.getElementById('kickWorkerInput');
+    const secretInput = document.getElementById('kickSecretInput');
+    const connectBtn = document.getElementById('kickConnectBtn');
+    const disconnectBtn = document.getElementById('kickDisconnectBtn');
+    const statusEl = document.getElementById('kickStatus');
+    const logWrap = document.getElementById('kickLogWrap');
+    const logBox = document.getElementById('kickLog');
+    if(!workerInput || !secretInput || !connectBtn) return;
+
+    workerInput.value = LS.get('copa_kick_worker') || '';
+    secretInput.value = LS.get('copa_kick_secret') || '';
+
+    let pollTimer = null;
+    let lastSeq = 0;
+
+    function setStatus(t, warn){
+      statusEl.textContent = t;
+      statusEl.classList.toggle('warn', !!warn);
+    }
+    function log(t){
+      if(!logBox) return;
+      logWrap.hidden = false;
+      const row = document.createElement('div');
+      const hh = new Date().toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+      row.textContent = '[' + hh + '] ' + t;
+      logBox.appendChild(row);
+      while(logBox.children.length > 60) logBox.removeChild(logBox.firstChild);
+      logBox.scrollTop = logBox.scrollHeight;
+    }
+    function setConnectedUI(connected){
+      connectBtn.hidden = connected;
+      disconnectBtn.hidden = !connected;
+      workerInput.readOnly = connected;
+      secretInput.readOnly = connected;
+    }
+
+    function handleCommand(username){
+      if(!state.registro.open){
+        log('⏳ ' + username + ' escribió el comando pero las inscripciones están cerradas.');
+        return;
+      }
+      const u = state.registro.usuarios.find(x=> x.nombre.trim().toLowerCase() === username.toLowerCase());
+      if(!u){
+        log('❌ ' + username + ' no está en la lista de Inscripciones — no se anotó.');
+        return;
+      }
+      if(u.anotado){
+        log('↩️ ' + username + ' ya estaba anotado.');
+        return;
+      }
+      u.anotado = true;
+      u.anotadoEn = Date.now();
+      saveState();
+      renderRegistro();
+      toast('✅ ' + u.nombre + ' se anotó al torneo (Kick)');
+      log('✅ ' + username + ' se anotó correctamente.');
+    }
+
+    async function poll(){
+      const base = workerInput.value.trim().replace(/\/+$/, '');
+      const secret = secretInput.value.trim();
+      if(!base || !secret) return;
+      try{
+        const r = await fetch(base + '/queue?since=' + lastSeq + '&secret=' + encodeURIComponent(secret));
+        if(!r.ok){
+          if(r.status === 401){ setStatus('⚠️ Clave incorrecta.', true); disconnect(); return; }
+          setStatus('⚠️ El puente respondió con un error (' + r.status + ').', true);
+          return;
+        }
+        const data = await r.json();
+        if(data.items && data.items.length){
+          data.items.forEach(it=>{ lastSeq = Math.max(lastSeq, it.seq); handleCommand(it.username); });
+        }
+        const cmd = (data.cfg && data.cfg.cmd) ? data.cfg.cmd : '!entrar';
+        setStatus('✅ Conectado — escuchando "' + cmd + '" en el chat de Kick.');
+      }catch(e){
+        setStatus('🔁 No se pudo contactar al puente, reintentando…', true);
+      }
+    }
+
+    function connect(){
+      const base = workerInput.value.trim().replace(/\/+$/, '');
+      const secret = secretInput.value.trim();
+      if(!base){ setStatus('Pegá la URL de tu Worker.', true); return; }
+      if(!secret){ setStatus('Pegá la clave del puente.', true); return; }
+      LS.set('copa_kick_worker', base);
+      LS.set('copa_kick_secret', secret);
+      setConnectedUI(true);
+      setStatus('Conectando…');
+      log('Conectado al puente.');
+      poll();
+      pollTimer = setInterval(poll, 3000);
+    }
+    function disconnect(){
+      if(pollTimer){ clearInterval(pollTimer); pollTimer = null; }
       setStatus('Desconectado.');
       setConnectedUI(false);
     }
