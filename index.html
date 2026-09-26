@@ -1388,55 +1388,29 @@
         </label>
         <div>
           <b id="regOpenLabel">Inscripciones cerradas</b>
-          <p class="rules-line">Mientras estén cerradas, nadie se puede anotar aunque tenga el link.</p>
+          <p class="rules-line">Mientras estén cerradas, el comando del chat no anota a nadie.</p>
         </div>
       </div>
-
-      <hr class="divider-line">
-
-      <label class="names-label" for="regLinkInput">Link de inscripción (para tirar en el chat de Kick)</label>
-      <div class="link-row">
-        <input class="link-input" id="regLinkInput" type="text" readonly spellcheck="false">
-        <button class="btn btn-primary" type="button" id="regLinkCopyBtn">Copiar link</button>
-      </div>
-      <p class="modal-note" id="regLinkMsg" aria-live="polite"></p>
-      <p class="rules-line" id="regStatusNote">⏳ Preparando la sala de inscripciones…</p>
 
       <hr class="divider-line">
 
       <label class="names-label">Crear usuario</label>
       <div class="config-row">
         <div class="config-field">
-          <label for="regNameInput">Nombre</label>
+          <label for="regNameInput">Nombre (tiene que ser igual a su usuario de Twitch)</label>
           <input type="text" id="regNameInput" maxlength="40" placeholder="ej: martino" autocomplete="off">
         </div>
-        <div class="config-field">
-          <label for="regPassInput">Contraseña</label>
-          <input type="text" id="regPassInput" maxlength="30" placeholder="ej: 4x9k2" autocomplete="off">
-        </div>
-        <button class="btn btn-small" type="button" id="regGenPassBtn">🎲 Generar</button>
         <button class="btn btn-primary" type="button" id="regAddBtn">➕ Crear</button>
       </div>
       <p class="status-msg" id="regAddStatus"></p>
 
       <div class="table-wrap" style="margin-top:18px;">
         <table class="standings" id="regTable">
-          <thead><tr><th style="text-align:left;">Nombre</th><th style="text-align:left;">Contraseña</th><th>Estado</th><th></th></tr></thead>
+          <thead><tr><th style="text-align:left;">Nombre</th><th>Estado</th><th></th></tr></thead>
           <tbody id="regTableBody"></tbody>
         </table>
       </div>
       <p class="rules-line" id="regEmptyNote">Todavía no creaste ningún usuario.</p>
-
-      <hr class="divider-line">
-
-      <label class="names-label">Excel de inscriptos</label>
-      <div class="config-actions" style="margin-top:0;">
-        <button class="btn btn-small" type="button" id="regExportBtn">⬇️ Descargar Excel</button>
-        <button class="btn btn-small" type="button" id="regImportBtn">⬆️ Subir Excel</button>
-        <input type="file" id="regImportFile" accept=".xlsx,.xls,.csv" hidden>
-      </div>
-      <p class="status-msg" id="regExcelStatus" aria-live="polite"></p>
-      <p class="rules-line">Descargá la lista, editala en Excel (cambiá nombres o contraseñas, agregá o borrá filas) y volvé a subirla: la lista de acá se reemplaza por la del archivo.</p>
 
       <hr class="divider-line">
 
@@ -1782,11 +1756,10 @@
     arr.slice(0, 500).forEach(u=>{
       if(!u || typeof u !== 'object') return;
       const nombre = cleanStr(u.nombre, 40).trim();
-      const contrasena = cleanStr(u.contrasena, 30).trim();
-      if(!nombre || !contrasena) return;
+      if(!nombre) return;
       out.push({
         id: (typeof u.id === 'string' && u.id.length <= 20) ? u.id : newRegId(),
-        nombre, contrasena,
+        nombre,
         anotado: !!u.anotado,
         anotadoEn: (typeof u.anotadoEn === 'number') ? u.anotadoEn : null
       });
@@ -1873,12 +1846,6 @@
   const JOIN_ID = parseJoin();
   const isGuest = !!JOIN_ID;
   function newRegId(){ return 'r' + Math.random().toString(36).slice(2,10); }
-  function genRegPass(){
-    const abc = 'abcdefghjkmnpqrstuvwxyz23456789'; // sin caracteres confusos (sin i,l,o,1,0)
-    let s = '';
-    for(let i=0;i<6;i++) s += abc[Math.floor(Math.random()*abc.length)];
-    return s;
-  }
 
   const LS = {
     get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } },
@@ -1929,12 +1896,6 @@
   let guestConn = null, guestRetry = null, firstSnap = true;
   let syncTimer = null, renderQueued = false, lastToast = 0, toastT = null;
   const synced = {}, dirty = {};
-
-  // ---- sala de inscripciones (independiente de "Compartir") ----
-  let regPeer = null, regPeerState = 'off', regPeerRetry = null;
-  const regConns = new Map();
-  let regRoomId = LS.get('copa_reg_room');
-  if(!isGuest && !regRoomId){ regRoomId = newRoomId(); LS.set('copa_reg_room', regRoomId); }
 
   function currentCanon(name){ return canon(SECTIONS[name](state)); }
   function writableSections(){ return isGuest ? SECTION_NAMES.filter(n=>maySend(n, perms)) : SECTION_NAMES; }
@@ -2035,13 +1996,6 @@
     if(/^https?:$/.test(location.protocol)) base = location.href.split('#')[0].split('?')[0];
     else base = (LS.get('copa_base') || '').trim().split('#')[0];
     return base ? base + '#sala=' + hostId : '';
-  }
-  function buildRegLink(){
-    if(!regRoomId) return '';
-    let dir;
-    if(/^https?:$/.test(location.protocol)) dir = location.href.split('#')[0].split('?')[0].replace(/[^/]*$/, '');
-    else dir = (LS.get('copa_base') || '').trim().split('#')[0].replace(/[^/]*$/, '');
-    return dir ? dir + 'inscripcion.html?sala=' + regRoomId : '';
   }
   function buildObsLink(vista){
     if(!hostId) return '';
@@ -2160,19 +2114,6 @@
   }
   function onGuestMsg(conn, msg){
     if(!msg || typeof msg !== 'object') return;
-    if(msg.t === 'reg_intento'){
-      const pass = cleanStr(msg.contrasena, 30).trim();
-      if(!state.registro.open){ sendTo(conn, { t:'reg_resultado', ok:false, motivo:'cerrado' }); return; }
-      const u = state.registro.usuarios.find(x=> x.contrasena === pass);
-      if(!pass || !u){ sendTo(conn, { t:'reg_resultado', ok:false, motivo:'invalida' }); return; }
-      u.anotado = true;
-      u.anotadoEn = Date.now();
-      saveState();
-      renderRegistro();
-      toast('✅ ' + u.nombre + ' se anotó al torneo');
-      sendTo(conn, { t:'reg_resultado', ok:true, nombre:u.nombre });
-      return;
-    }
     if(msg.t === 'chat'){
       const text = cleanStr(msg.text, 500).trim();
       if(!text) return;
@@ -2262,61 +2203,6 @@
     LS.del('copa_room'); LS.del('copa_sharing');
     shareState = 'off'; peerCount = 1;
     updateShareUI();
-  }
-
-  // ---- sala de inscripciones ----
-  function updateRegUI(){
-    const note = document.getElementById('regStatusNote');
-    if(!note) return;
-    const map = {
-      off: '⚪ La sala de inscripciones está apagada.',
-      connecting: '⏳ Preparando la sala de inscripciones…',
-      live: '🟢 Activa — mientras esta página esté abierta, el link de arriba funciona.',
-      error: '🔴 No se pudo conectar el servicio para inscripciones. Se reintenta solo.'
-    };
-    note.textContent = map[regPeerState] || '';
-  }
-  function onRegGuestConn(conn){
-    regConns.set(conn.peer, conn);
-    conn.on('data', (msg)=> onGuestMsg(conn, msg));
-    conn.on('close', ()=> regConns.delete(conn.peer));
-    conn.on('error', ()=> regConns.delete(conn.peer));
-  }
-  function openRegPeer(P, attempt){
-    clearTimeout(regPeerRetry);
-    regPeerState = 'connecting'; updateRegUI();
-    let p;
-    try{ p = new P(regRoomId); }catch(e){ regPeerState = 'error'; updateRegUI(); return; }
-    regPeer = p;
-    p.on('open', ()=>{ regPeerState = 'live'; updateRegUI(); });
-    p.on('connection', onRegGuestConn);
-    p.on('disconnected', ()=>{
-      if(regPeer !== p || p.destroyed) return;
-      regPeerState = 'connecting'; updateRegUI();
-      setTimeout(()=>{ try{ if(regPeer === p && !p.destroyed) p.reconnect(); }catch(e){} }, 2000);
-    });
-    p.on('error', (err)=>{
-      if(regPeer !== p) return;
-      const type = err && err.type;
-      if(type === 'unavailable-id'){
-        try{ p.destroy(); }catch(e){}
-        if(attempt < 4){ regPeerRetry = setTimeout(()=> openRegPeer(P, attempt+1), 2500); }
-        else{ regRoomId = newRoomId(); LS.set('copa_reg_room', regRoomId); openRegPeer(P, 0); }
-        return;
-      }
-      regPeerState = 'error'; updateRegUI();
-      if(type === 'network' || type === 'server-error' || type === 'socket-error' || type === 'socket-closed'){
-        regPeerRetry = setTimeout(()=>{ try{ p.destroy(); }catch(e){} openRegPeer(P, 0); }, 5000);
-      }
-    });
-  }
-  async function startRegPeer(){
-    if(isGuest) return;
-    regPeerState = 'connecting'; updateRegUI();
-    let P;
-    try{ P = await loadPeerJs(); }
-    catch(e){ regPeerState = 'error'; updateRegUI(); return; }
-    openRegPeer(P, 0);
   }
 
   // ---- invitado ----
@@ -3444,7 +3330,6 @@
       if(changed) el.value = existing.join('\n');
     });
   }
-  const regRevealed = new Set();
   function renderRegistro(){
     const body = document.getElementById('regTableBody');
     if(!body) return;
@@ -3452,15 +3337,8 @@
     document.getElementById('regEmptyNote').hidden = list.length > 0;
     body.innerHTML = list.map(u=>{
       const estado = u.anotado ? '✅ Anotado' : '— Sin anotar';
-      const shown = regRevealed.has(u.id);
-      const passText = shown ? esc(u.contrasena) : '•'.repeat(Math.max(6, u.contrasena.length));
       return '<tr>'
         + '<td class="name">' + esc(u.nombre) + '</td>'
-        + '<td class="reg-pass">'
-          + '<span class="reg-pass-text">' + passText + '</span>'
-          + '<button class="btn btn-small reg-eye-btn" type="button" data-id="' + u.id + '" title="' + (shown ? 'Ocultar' : 'Mostrar') + '">' + (shown ? '🙈' : '👁️') + '</button>'
-          + '<button class="btn btn-small reg-copy-btn" type="button" data-copy="' + esc(u.contrasena) + '">Copiar</button>'
-        + '</td>'
         + '<td>' + estado + '</td>'
         + '<td><button class="btn btn-small btn-danger reg-del-btn" type="button" data-id="' + u.id + '">Borrar</button></td>'
         + '</tr>';
@@ -3468,9 +3346,6 @@
     const chk = document.getElementById('regOpenToggle');
     chk.checked = !!state.registro.open;
     document.getElementById('regOpenLabel').textContent = state.registro.open ? 'Inscripciones abiertas' : 'Inscripciones cerradas';
-    const link = buildRegLink();
-    const li = document.getElementById('regLinkInput');
-    if(li && document.activeElement !== li) li.value = link || '';
     syncNamesPools();
     if(state.view === 'registro') updateHero();
   }
@@ -3479,35 +3354,20 @@
     saveState();
     renderRegistro();
   });
-  document.getElementById('regGenPassBtn').addEventListener('click', ()=>{
-    document.getElementById('regPassInput').value = genRegPass();
-  });
   document.getElementById('regAddBtn').addEventListener('click', ()=>{
     const nameInput = document.getElementById('regNameInput');
-    const passInput = document.getElementById('regPassInput');
     const statusEl = document.getElementById('regAddStatus');
     const nombre = nameInput.value.trim();
-    const pass = passInput.value.trim();
     statusEl.classList.remove('warn');
     if(!nombre){ statusEl.textContent = 'Poné un nombre.'; statusEl.classList.add('warn'); return; }
-    if(!pass){ statusEl.textContent = 'Poné una contraseña (o generá una con 🎲).'; statusEl.classList.add('warn'); return; }
-    if(state.registro.usuarios.some(u=> u.contrasena === pass)){ statusEl.textContent = 'Esa contraseña ya la tiene otro usuario — probá con otra.'; statusEl.classList.add('warn'); return; }
-    state.registro.usuarios.push({ id:newRegId(), nombre:nombre.slice(0,40), contrasena:pass.slice(0,30), anotado:false, anotadoEn:null });
-    nameInput.value = ''; passInput.value = '';
-    statusEl.textContent = 'Usuario creado — copiale la contraseña y pasásela.';
+    if(state.registro.usuarios.some(u=> u.nombre.toLowerCase() === nombre.toLowerCase())){ statusEl.textContent = 'Ya existe un usuario con ese nombre.'; statusEl.classList.add('warn'); return; }
+    state.registro.usuarios.push({ id:newRegId(), nombre:nombre.slice(0,40), anotado:false, anotadoEn:null });
+    nameInput.value = '';
+    statusEl.textContent = 'Usuario creado.';
     saveState();
     renderRegistro();
   });
   document.getElementById('regTableBody').addEventListener('click', async (e)=>{
-    const cp = e.target.closest('.reg-copy-btn');
-    if(cp){ await copyText(cp.dataset.copy); toast('Contraseña copiada'); return; }
-    const eye = e.target.closest('.reg-eye-btn');
-    if(eye){
-      const id = eye.dataset.id;
-      if(regRevealed.has(id)) regRevealed.delete(id); else regRevealed.add(id);
-      renderRegistro();
-      return;
-    }
     const del = e.target.closest('.reg-del-btn');
     if(del){
       if(!(await askConfirm('¿Borrar este usuario de inscripciones?', 'Sí, borrar'))) return;
@@ -3516,117 +3376,6 @@
       renderRegistro();
     }
   });
-  // ---- Excel de inscriptos (descargar / editar / volver a subir) ----
-  const XLSX_CDNS = [
-    'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
-    'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js'
-  ];
-  function loadXlsx(){
-    if(window.XLSX) return Promise.resolve(window.XLSX);
-    return new Promise((resolve, reject)=>{
-      let i = 0;
-      const next = ()=>{
-        if(i >= XLSX_CDNS.length){ reject(new Error('cdn')); return; }
-        const sc = document.createElement('script');
-        sc.src = XLSX_CDNS[i++];
-        sc.async = true;
-        sc.onload = ()=>{ window.XLSX ? resolve(window.XLSX) : next(); };
-        sc.onerror = ()=>{ sc.remove(); next(); };
-        document.head.appendChild(sc);
-      };
-      next();
-    });
-  }
-  function normTxt(s){ return String(s == null ? '' : s).trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
-  function cellTxt(v){ return String(v == null ? '' : v).trim(); }
-  function parseRegRows(rows){
-    let col = { n:0, p:1, a:2 }, start = 0;
-    if(rows.length){
-      const h = rows[0].map(normTxt);
-      const fn = h.findIndex(x=> x === 'nombre' || x === 'usuario' || x === 'name');
-      const fp = h.findIndex(x=> x === 'contrasena' || x === 'clave' || x === 'password' || x === 'pass');
-      if(fn >= 0 && fp >= 0){ col = { n:fn, p:fp, a:h.findIndex(x=> x === 'anotado' || x === 'estado') }; start = 1; }
-    }
-    const prev = new Map(state.registro.usuarios.map(u=> [u.contrasena, u]));
-    const seen = new Set(), list = [];
-    let dup = 0, incomplete = 0;
-    for(let i = start; i < rows.length; i++){
-      const r = rows[i] || [];
-      const nombre = cellTxt(r[col.n]).slice(0,40);
-      const pass = cellTxt(r[col.p]).slice(0,30);
-      if(!nombre && !pass) continue;
-      if(!nombre || !pass){ incomplete++; continue; }
-      if(seen.has(pass)){ dup++; continue; }
-      seen.add(pass);
-      const old = prev.get(pass);
-      let anotado = old ? !!old.anotado : false;
-      if(col.a >= 0){
-        const v = normTxt(r[col.a]);
-        anotado = ['si','s','yes','y','true','1','x','ok','anotado'].includes(v) || v.includes('✅');
-      }
-      list.push({
-        id: old ? old.id : newRegId(),
-        nombre, contrasena: pass, anotado,
-        anotadoEn: anotado ? ((old && old.anotadoEn) || Date.now()) : null
-      });
-    }
-    return { list, dup, incomplete };
-  }
-  function regExcelMsg(text, warn){
-    const el = document.getElementById('regExcelStatus');
-    el.textContent = text;
-    el.classList.toggle('warn', !!warn);
-  }
-  document.getElementById('regExportBtn').addEventListener('click', async ()=>{
-    let X;
-    try{ X = await loadXlsx(); }
-    catch(err){ regExcelMsg('No se pudo cargar el conversor de Excel. Revisá tu internet y probá de nuevo.', true); return; }
-    const list = state.registro.usuarios;
-    const aoa = [['Nombre', 'Contraseña', 'Anotado']].concat(list.map(u=> [u.nombre, u.contrasena, u.anotado ? 'Sí' : 'No']));
-    const ws = X.utils.aoa_to_sheet(aoa);
-    for(let r = 1; r < aoa.length; r++){
-      const c = ws[X.utils.encode_cell({ r:r, c:1 })];
-      if(c){ c.t = 's'; c.z = '@'; } // contraseñas como texto (Excel no les saca ceros)
-    }
-    ws['!cols'] = [{ wch:24 }, { wch:18 }, { wch:10 }];
-    const wb = X.utils.book_new();
-    X.utils.book_append_sheet(wb, ws, 'Inscripciones');
-    X.writeFile(wb, 'inscripciones.xlsx');
-    regExcelMsg(list.length ? '✅ Descargado: ' + list.length + (list.length === 1 ? ' usuario.' : ' usuarios.') : '✅ Descargado el Excel vacío (solo encabezados), listo para completar.', false);
-  });
-  document.getElementById('regImportBtn').addEventListener('click', ()=>{
-    document.getElementById('regImportFile').click();
-  });
-  document.getElementById('regImportFile').addEventListener('change', async (e)=>{
-    const file = e.target.files && e.target.files[0];
-    e.target.value = '';
-    if(!file) return;
-    let X;
-    try{ X = await loadXlsx(); }
-    catch(err){ regExcelMsg('No se pudo cargar el conversor de Excel. Revisá tu internet y probá de nuevo.', true); return; }
-    let rows;
-    try{
-      const wb = X.read(await file.arrayBuffer(), { type:'array' });
-      rows = X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header:1, defval:'', raw:true });
-    }catch(err){ regExcelMsg('No se pudo leer ese archivo. Tiene que ser un Excel (.xlsx) o un CSV.', true); return; }
-    const res = parseRegRows(rows);
-    if(!res.list.length){ regExcelMsg('No encontré usuarios en el archivo. Tiene que tener las columnas Nombre y Contraseña.', true); return; }
-    const before = state.registro.usuarios.length;
-    if(!(await askConfirm('¿Reemplazar la lista actual (' + before + ' usuarios) por la del archivo (' + res.list.length + ' usuarios)?' + liveNote(), 'Sí, reemplazar'))) return;
-    state.registro.usuarios = res.list;
-    saveState();
-    renderRegistro();
-    let msg = '✅ Lista actualizada: ' + res.list.length + (res.list.length === 1 ? ' usuario.' : ' usuarios.');
-    if(res.dup) msg += ' Se omitieron ' + res.dup + ' fila(s) con contraseña repetida.';
-    if(res.incomplete) msg += ' Se omitieron ' + res.incomplete + ' fila(s) sin nombre o sin contraseña.';
-    regExcelMsg(msg, !!(res.dup || res.incomplete));
-  });
-  document.getElementById('regLinkCopyBtn').addEventListener('click', async ()=>{
-    const input = document.getElementById('regLinkInput');
-    const ok = await copyText(input.value, input);
-    document.getElementById('regLinkMsg').textContent = ok ? '✅ Copiado. Pegalo en el chat de Kick.' : 'No se pudo copiar — seleccioná el texto a mano.';
-  });
-
   // ---- Twitch: auto-anotación por comando de chat (solo lectura, sin backend) ----
   (function twitchAutoReg(){
     const channelInput = document.getElementById('twitchChannelInput');
@@ -3965,7 +3714,6 @@
   applyView();
   wireShareUI();
   initShare();
-  startRegPeer();
 })();
 </script>
 
