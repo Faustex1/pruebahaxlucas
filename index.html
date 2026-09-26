@@ -1394,28 +1394,46 @@
 
       <hr class="divider-line">
 
-      <label class="names-label">Crear usuario</label>
+      <label class="names-label">Cargar usuario habilitado</label>
+      <p class="rules-line">Cargá el par de nombres: cómo escribe esa persona en el chat (Twitch o Kick) y cómo quiere aparecer en Haxball. Cuando escriba el comando en cualquiera de los dos chats, su nombre de Haxball entra directo a la lista de sorteo.</p>
       <div class="config-row">
         <div class="config-field">
-          <label for="regNameInput">Nombre (tiene que ser igual a su usuario de Twitch)</label>
-          <input type="text" id="regNameInput" maxlength="40" placeholder="ej: martino" autocomplete="off">
+          <label for="regHaxballInput">Usuario de Haxball</label>
+          <input type="text" id="regHaxballInput" maxlength="40" placeholder="ej: Martino" autocomplete="off">
         </div>
-        <button class="btn btn-primary" type="button" id="regAddBtn">➕ Crear</button>
+        <div class="config-field">
+          <label for="regChatInput">Usuario de Twitch/Kick</label>
+          <input type="text" id="regChatInput" maxlength="40" placeholder="ej: martino27" autocomplete="off">
+        </div>
+        <button class="btn btn-primary" type="button" id="regAddBtn">➕ Cargar</button>
       </div>
       <p class="status-msg" id="regAddStatus"></p>
 
       <div class="table-wrap" style="margin-top:18px;">
         <table class="standings" id="regTable">
-          <thead><tr><th style="text-align:left;">Nombre</th><th>Estado</th><th></th></tr></thead>
+          <thead><tr><th style="text-align:left;">Usuario Haxball</th><th>Usuario Twitch/Kick</th><th></th></tr></thead>
           <tbody id="regTableBody"></tbody>
         </table>
       </div>
-      <p class="rules-line" id="regEmptyNote">Todavía no creaste ningún usuario.</p>
+      <p class="rules-line" id="regEmptyNote">Todavía no cargaste ningún usuario habilitado.</p>
+
+      <hr class="divider-line">
+
+      <label class="names-label">Importar lista desde Excel</label>
+      <p class="rules-line">Subí un .xlsx con dos columnas: la primera con el usuario de Twitch/Kick, la segunda con el nombre de Haxball. La primera fila (encabezado) se ignora. Se agregan los nuevos y se actualizan los que ya existían (por usuario de chat).</p>
+      <div class="config-row">
+        <div class="config-field">
+          <label for="regExcelInput">Archivo .xlsx</label>
+          <input type="file" id="regExcelInput" accept=".xlsx,.xls">
+        </div>
+        <button class="btn btn-primary" type="button" id="regExcelBtn">📥 Importar Excel</button>
+      </div>
+      <p class="status-msg" id="regExcelStatus"></p>
 
       <hr class="divider-line">
 
       <label class="names-label">Auto-anotación desde el chat de Twitch</label>
-      <p class="rules-line">Se conecta en modo solo-lectura al chat de tu canal (no hace falta token ni app de desarrollador). Cuando alguien escribe el comando, si su usuario de Twitch coincide con un nombre que ya creaste arriba, queda anotado automáticamente. Dejá esta pestaña abierta mientras esté conectado.</p>
+      <p class="rules-line">Se conecta en modo solo-lectura al chat de tu canal (no hace falta token ni app de desarrollador). Cuando alguien escribe el comando, si su usuario de Twitch coincide con un usuario de chat que ya cargaste arriba, su nombre de Haxball entra directo a la lista de sorteo. Dejá esta pestaña abierta mientras esté conectado.</p>
       <div class="config-row">
         <div class="config-field">
           <label for="twitchChannelInput">Canal de Twitch</label>
@@ -1436,25 +1454,8 @@
 
       <hr class="divider-line">
 
-      <label class="names-label">Ver el chat de Kick acá mismo (sin backend, sin pedirle nada al streamer)</label>
-      <p class="rules-line">Mirar un chat de Kick es público — no hace falta cuenta ni permiso de nadie. Poné el nombre del canal y vas a ver su chat en vivo, acá abajo, al lado de la tabla de Inscripciones. Cuando alguien escriba el comando, marcalo con el botón "Marcar" de la fila de ese usuario — el navegador no deja leer automáticamente lo que hay dentro del chat embebido, así que este paso queda manual.</p>
-      <div class="config-row">
-        <div class="config-field">
-          <label for="kickViewChannelInput">Canal de Kick</label>
-          <input type="text" id="kickViewChannelInput" placeholder="ej: xqc" autocomplete="off" spellcheck="false">
-        </div>
-        <button class="btn btn-primary" type="button" id="kickViewShowBtn">👁️ Mostrar chat</button>
-        <button class="btn btn-small btn-danger" type="button" id="kickViewHideBtn" hidden>Ocultar</button>
-      </div>
-      <p class="status-msg" id="kickViewStatus"></p>
-      <div id="kickViewWrap" hidden style="margin-top:10px; height:420px; border:1px solid var(--card-border); border-radius:8px; overflow:hidden;">
-        <iframe id="kickViewFrame" style="width:100%; height:100%; border:0;" title="Chat de Kick"></iframe>
-      </div>
-
-      <hr class="divider-line">
-
-      <label class="names-label">Auto-anotación real (necesita el puente + que el streamer autorice una vez)</label>
-      <p class="rules-line">Esta es la única forma de que quede marcado 100% solo, sin que vos tengas que apretar nada mientras mirás el chat. A cambio, pide el puente (Cloudflare Worker) y que el dueño del canal apruebe una sola vez — mirá las instrucciones que te pasé aparte.</p>
+      <label class="names-label">Auto-anotación desde el chat de Kick (vía el puente)</label>
+      <p class="rules-line">Usa el puente (Cloudflare Worker + Botrix) para escuchar el comando en el chat de Kick. Cuando alguien lo escribe, si su usuario de Kick coincide con un usuario de chat que ya cargaste arriba, su nombre de Haxball entra directo a la lista de sorteo — mirá las instrucciones que te pasé aparte.</p>
       <div class="config-row">
         <div class="config-field">
           <label for="kickWorkerInput">URL del puente (Cloudflare Worker)</label>
@@ -1589,6 +1590,7 @@
   </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 (function(){
   const STORE_KEY = 'haxball_torneo_v2';
@@ -1794,13 +1796,14 @@
     const out = [];
     arr.slice(0, 500).forEach(u=>{
       if(!u || typeof u !== 'object') return;
-      const nombre = cleanStr(u.nombre, 40).trim();
-      if(!nombre) return;
+      // compatibilidad con códigos viejos que solo tenían "nombre" (se usaba como usuario de chat)
+      const haxball = cleanStr(u.haxball || u.nombre, 40).trim();
+      const chat = cleanStr(u.chat || u.nombre, 40).trim();
+      if(!haxball || !chat) return;
       out.push({
         id: (typeof u.id === 'string' && u.id.length <= 20) ? u.id : newRegId(),
-        nombre,
-        anotado: !!u.anotado,
-        anotadoEn: (typeof u.anotadoEn === 'number') ? u.anotadoEn : null
+        haxball,
+        chat
       });
     });
     return out;
@@ -3273,13 +3276,13 @@
       document.getElementById('statExtraLabel').textContent = lay.rounds === 1 ? 'ronda' : 'rondas';
     } else if(v === 'registro'){
       const list = state.registro.usuarios;
-      const anotados = list.filter(u=> u.anotado).length;
+      const enLista = list.filter(u=> isNameInSorteoPools(u.haxball)).length;
       extraBox.hidden = true;
       kicker.textContent = 'HAXBALL · INSCRIPCIONES';
       document.getElementById('statTeams').textContent = list.length;
-      document.getElementById('statTeamsLabel').textContent = list.length === 1 ? 'usuario creado' : 'usuarios creados';
-      document.getElementById('statPlayers').textContent = anotados;
-      document.getElementById('statPlayersLabel').textContent = anotados === 1 ? 'anotado' : 'anotados';
+      document.getElementById('statTeamsLabel').textContent = list.length === 1 ? 'usuario habilitado' : 'usuarios habilitados';
+      document.getElementById('statPlayers').textContent = enLista;
+      document.getElementById('statPlayersLabel').textContent = 'en la lista de sorteo';
       document.getElementById('statMatches').textContent = state.registro.open ? 'Abiertas' : 'Cerradas';
       document.getElementById('statMatchesLabel').textContent = '';
     } else {
@@ -3354,20 +3357,29 @@
     tab.addEventListener('click', ()=> switchView(tab.dataset.view));
   });
   // ---------- inscripciones (panel del organizador) ----------
-  function syncNamesPools(){
-    const names = state.registro.usuarios.filter(u=> u.anotado).map(u=> u.nombre);
-    if(!names.length) return;
+  function isNameInSorteoPools(name){
+    return ['namesTextarea', 'koNamesTextarea'].some(id=>{
+      const el = document.getElementById(id);
+      if(!el) return false;
+      return el.value.split('\n').map(s=> s.trim()).some(s=> s.toLowerCase() === (name||'').toLowerCase());
+    });
+  }
+  // Agrega un nombre a las listas de sorteo (liga y eliminatoria) si todavía no está.
+  // Devuelve true si lo agregó en al menos una, false si ya estaba en todas.
+  function addNameToSorteoPools(name){
+    let addedAny = false;
     ['namesTextarea', 'koNamesTextarea'].forEach(id=>{
       const el = document.getElementById(id);
-      if(!el || document.activeElement === el) return; // no tocar mientras se escribe ahí
+      if(!el) return;
       const existing = el.value.split('\n').map(s=> s.trim()).filter(Boolean);
-      const seen = new Set(existing.map(s=> s.toLowerCase()));
-      let changed = false;
-      names.forEach(n=>{
-        if(!seen.has(n.toLowerCase())){ existing.push(n); seen.add(n.toLowerCase()); changed = true; }
-      });
-      if(changed) el.value = existing.join('\n');
+      const already = existing.some(s=> s.toLowerCase() === name.toLowerCase());
+      if(!already){
+        existing.push(name);
+        el.value = existing.join('\n');
+        addedAny = true;
+      }
     });
+    return addedAny;
   }
   function renderRegistro(){
     const body = document.getElementById('regTableBody');
@@ -3375,12 +3387,10 @@
     const list = state.registro.usuarios;
     document.getElementById('regEmptyNote').hidden = list.length > 0;
     body.innerHTML = list.map(u=>{
-      const estado = u.anotado ? '✅ Anotado' : '— Sin anotar';
       return '<tr>'
-        + '<td class="name">' + esc(u.nombre) + '</td>'
-        + '<td>' + estado + '</td>'
+        + '<td class="name">' + esc(u.haxball || '') + '</td>'
+        + '<td>' + esc(u.chat || '') + '</td>'
         + '<td>'
-          + '<button class="btn btn-small reg-toggle-btn" type="button" data-id="' + u.id + '">' + (u.anotado ? 'Quitar' : '✅ Marcar') + '</button>'
           + '<button class="btn btn-small btn-danger reg-del-btn" type="button" data-id="' + u.id + '">Borrar</button>'
         + '</td>'
         + '</tr>';
@@ -3388,7 +3398,6 @@
     const chk = document.getElementById('regOpenToggle');
     chk.checked = !!state.registro.open;
     document.getElementById('regOpenLabel').textContent = state.registro.open ? 'Inscripciones abiertas' : 'Inscripciones cerradas';
-    syncNamesPools();
     if(state.view === 'registro') updateHero();
   }
   document.getElementById('regOpenToggle').addEventListener('change', (e)=>{
@@ -3397,38 +3406,75 @@
     renderRegistro();
   });
   document.getElementById('regAddBtn').addEventListener('click', ()=>{
-    const nameInput = document.getElementById('regNameInput');
+    const haxballInput = document.getElementById('regHaxballInput');
+    const chatInput = document.getElementById('regChatInput');
     const statusEl = document.getElementById('regAddStatus');
-    const nombre = nameInput.value.trim();
+    const haxball = haxballInput.value.trim();
+    const chat = chatInput.value.trim();
     statusEl.classList.remove('warn');
-    if(!nombre){ statusEl.textContent = 'Poné un nombre.'; statusEl.classList.add('warn'); return; }
-    if(state.registro.usuarios.some(u=> u.nombre.toLowerCase() === nombre.toLowerCase())){ statusEl.textContent = 'Ya existe un usuario con ese nombre.'; statusEl.classList.add('warn'); return; }
-    state.registro.usuarios.push({ id:newRegId(), nombre:nombre.slice(0,40), anotado:false, anotadoEn:null });
-    nameInput.value = '';
-    statusEl.textContent = 'Usuario creado.';
+    if(!haxball || !chat){ statusEl.textContent = 'Completá los dos nombres.'; statusEl.classList.add('warn'); return; }
+    if(state.registro.usuarios.some(u=> (u.chat||'').toLowerCase() === chat.toLowerCase())){ statusEl.textContent = 'Ya existe un usuario cargado con ese usuario de chat.'; statusEl.classList.add('warn'); return; }
+    state.registro.usuarios.push({ id:newRegId(), haxball:haxball.slice(0,40), chat:chat.slice(0,40) });
+    haxballInput.value = '';
+    chatInput.value = '';
+    statusEl.textContent = 'Usuario cargado.';
     saveState();
     renderRegistro();
   });
   document.getElementById('regTableBody').addEventListener('click', async (e)=>{
-    const toggle = e.target.closest('.reg-toggle-btn');
-    if(toggle){
-      const u = state.registro.usuarios.find(x=> x.id === toggle.dataset.id);
-      if(u){
-        u.anotado = !u.anotado;
-        u.anotadoEn = u.anotado ? Date.now() : null;
-        saveState();
-        renderRegistro();
-      }
-      return;
-    }
     const del = e.target.closest('.reg-del-btn');
     if(del){
-      if(!(await askConfirm('¿Borrar este usuario de inscripciones?', 'Sí, borrar'))) return;
+      if(!(await askConfirm('¿Borrar este usuario de la lista de habilitados?', 'Sí, borrar'))) return;
       state.registro.usuarios = state.registro.usuarios.filter(u=> u.id !== del.dataset.id);
       saveState();
       renderRegistro();
     }
   });
+  // ---- Importar usuarios habilitados desde un Excel (.xlsx) ----
+  (function regExcelImport(){
+    const fileInput = document.getElementById('regExcelInput');
+    const btn = document.getElementById('regExcelBtn');
+    const statusEl = document.getElementById('regExcelStatus');
+    if(!fileInput || !btn) return;
+    btn.addEventListener('click', ()=>{
+      statusEl.classList.remove('warn');
+      const file = fileInput.files && fileInput.files[0];
+      if(!file){ statusEl.textContent = 'Elegí un archivo .xlsx primero.'; statusEl.classList.add('warn'); return; }
+      if(typeof XLSX === 'undefined'){ statusEl.textContent = 'No se pudo cargar la librería de Excel. Revisá tu conexión y volvé a intentar.'; statusEl.classList.add('warn'); return; }
+      const reader = new FileReader();
+      reader.onload = (ev)=>{
+        try{
+          const data = new Uint8Array(ev.target.result);
+          const wb = XLSX.read(data, { type:'array' });
+          const sheet = wb.Sheets[wb.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json(sheet, { header:1, raw:false, defval:'' });
+          let agregados = 0, actualizados = 0, invalidas = 0;
+          rows.forEach((row, idx)=>{
+            if(idx === 0) return; // encabezado
+            const chat = String(row[0] || '').trim();
+            const haxball = String(row[1] || '').trim();
+            if(!chat || !haxball){ if(chat || haxball) invalidas++; return; }
+            const existente = state.registro.usuarios.find(u=> (u.chat||'').toLowerCase() === chat.toLowerCase());
+            if(existente){
+              existente.haxball = haxball.slice(0,40);
+              actualizados++;
+            } else {
+              state.registro.usuarios.push({ id:newRegId(), haxball:haxball.slice(0,40), chat:chat.slice(0,40) });
+              agregados++;
+            }
+          });
+          saveState();
+          renderRegistro();
+          statusEl.textContent = `Listo — ${agregados} agregados, ${actualizados} actualizados` + (invalidas ? `, ${invalidas} filas ignoradas por datos incompletos` : '') + '.';
+          fileInput.value = '';
+        } catch(err){
+          statusEl.textContent = 'No se pudo leer el archivo. ¿Es un .xlsx válido?';
+          statusEl.classList.add('warn');
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    });
+  })();
   // ---- Twitch: auto-anotación por comando de chat (solo lectura, sin backend) ----
   (function twitchAutoReg(){
     const channelInput = document.getElementById('twitchChannelInput');
@@ -3473,21 +3519,19 @@
         log('⏳ ' + username + ' escribió el comando pero las inscripciones están cerradas.');
         return;
       }
-      const u = state.registro.usuarios.find(x=> x.nombre.trim().toLowerCase() === username.toLowerCase());
+      const u = state.registro.usuarios.find(x=> (x.chat||'').trim().toLowerCase() === username.toLowerCase());
       if(!u){
-        log('❌ ' + username + ' no está en la lista de Inscripciones — no se anotó.');
+        log('❌ ' + username + ' no está en la lista de habilitados — no entró a la lista.');
         return;
       }
-      if(u.anotado){
-        log('↩️ ' + username + ' ya estaba anotado.');
-        return;
-      }
-      u.anotado = true;
-      u.anotadoEn = Date.now();
+      const agregado = addNameToSorteoPools(u.haxball);
       saveState();
-      renderRegistro();
-      toast('✅ ' + u.nombre + ' se anotó al torneo (Twitch)');
-      log('✅ ' + username + ' se anotó correctamente.');
+      if(!agregado){
+        log('↩️ ' + username + ' (' + u.haxball + ') ya estaba en la lista.');
+        return;
+      }
+      toast('✅ ' + u.haxball + ' entró a la lista de sorteo (Twitch)');
+      log('✅ ' + username + ' (' + u.haxball + ') entró a la lista.');
     }
 
     function scheduleReconnect(fast){
@@ -3567,39 +3611,6 @@
     disconnectBtn.addEventListener('click', disconnect);
   })();
 
-  // ---- Kick: ver el chat embebido (público, sin backend) ----
-  (function kickViewEmbed(){
-    const channelInput = document.getElementById('kickViewChannelInput');
-    const showBtn = document.getElementById('kickViewShowBtn');
-    const hideBtn = document.getElementById('kickViewHideBtn');
-    const statusEl = document.getElementById('kickViewStatus');
-    const wrap = document.getElementById('kickViewWrap');
-    const frame = document.getElementById('kickViewFrame');
-    if(!channelInput || !showBtn) return;
-
-    channelInput.value = LS.get('copa_kick_view_channel') || '';
-
-    showBtn.addEventListener('click', ()=>{
-      const channel = channelInput.value.trim().toLowerCase().replace(/^#/, '');
-      if(!channel){ statusEl.textContent = 'Poné el nombre del canal primero.'; statusEl.classList.add('warn'); return; }
-      LS.set('copa_kick_view_channel', channel);
-      frame.src = 'https://kick.com/popout/' + encodeURIComponent(channel) + '/chat';
-      wrap.hidden = false;
-      showBtn.hidden = true;
-      hideBtn.hidden = false;
-      channelInput.readOnly = true;
-      statusEl.textContent = '';
-      statusEl.classList.remove('warn');
-    });
-    hideBtn.addEventListener('click', ()=>{
-      frame.src = 'about:blank';
-      wrap.hidden = true;
-      showBtn.hidden = false;
-      hideBtn.hidden = true;
-      channelInput.readOnly = false;
-    });
-  })();
-
   // ---- Kick: auto-anotación vía el puente (Cloudflare Worker) ----
   (function kickAutoReg(){
     const workerInput = document.getElementById('kickWorkerInput');
@@ -3643,21 +3654,19 @@
         log('⏳ ' + username + ' escribió el comando pero las inscripciones están cerradas.');
         return;
       }
-      const u = state.registro.usuarios.find(x=> x.nombre.trim().toLowerCase() === username.toLowerCase());
+      const u = state.registro.usuarios.find(x=> (x.chat||'').trim().toLowerCase() === username.toLowerCase());
       if(!u){
-        log('❌ ' + username + ' no está en la lista de Inscripciones — no se anotó.');
+        log('❌ ' + username + ' no está en la lista de habilitados — no entró a la lista.');
         return;
       }
-      if(u.anotado){
-        log('↩️ ' + username + ' ya estaba anotado.');
-        return;
-      }
-      u.anotado = true;
-      u.anotadoEn = Date.now();
+      const agregado = addNameToSorteoPools(u.haxball);
       saveState();
-      renderRegistro();
-      toast('✅ ' + u.nombre + ' se anotó al torneo (Kick)');
-      log('✅ ' + username + ' se anotó correctamente.');
+      if(!agregado){
+        log('↩️ ' + username + ' (' + u.haxball + ') ya estaba en la lista.');
+        return;
+      }
+      toast('✅ ' + u.haxball + ' entró a la lista de sorteo (Kick)');
+      log('✅ ' + username + ' (' + u.haxball + ') entró a la lista.');
     }
 
     async function poll(){
