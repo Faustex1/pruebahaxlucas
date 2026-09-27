@@ -1140,6 +1140,111 @@
   }
   .palette-check{margin-left:auto; opacity:0; font-size:13px; color:var(--gold);}
   .palette-opt.active .palette-check{opacity:1;}
+
+  /* ---------- PODIUM SHARE ---------- */
+  .podium-trigger-btn{
+    display:inline-flex; align-items:center; gap:7px;
+    margin-top:12px; padding:9px 16px; border-radius:999px; border:1px solid rgba(var(--gold-rgb),0.5);
+    background:linear-gradient(135deg, var(--gold), var(--gold-dim)); color:var(--pitch-dark);
+    font-family:'IBM Plex Sans', sans-serif; font-weight:700; font-size:13px; cursor:pointer;
+    box-shadow:0 6px 18px rgba(var(--gold-rgb),0.25); transition:transform 0.15s ease, filter 0.15s ease;
+  }
+  .podium-trigger-btn:hover{ filter:brightness(1.08); transform:translateY(-1px); }
+  .podium-trigger-btn:active{ transform:translateY(0) scale(0.97); }
+  .podium-trigger-btn::before{ content:"📸"; font-size:14px; }
+
+  .podium-overlay{
+    position:fixed; inset:0; z-index:600;
+    display:flex; align-items:center; justify-content:center; padding:20px;
+    background:rgba(4,5,7,0.78); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+    opacity:0; pointer-events:none; transition:opacity 0.25s ease;
+  }
+  .podium-overlay.show{ opacity:1; pointer-events:auto; }
+  .podium-modal{
+    position:relative; width:min(560px, 100%); max-height:92vh; overflow:auto;
+    border-radius:22px; padding:30px 24px 26px;
+    background:
+      radial-gradient(420px 260px at 20% -10%, rgba(var(--gold-rgb),0.22), transparent 65%),
+      radial-gradient(480px 300px at 100% 110%, rgba(var(--pitch-bright-rgb),0.30), transparent 60%),
+      linear-gradient(165deg, var(--pitch-dark), var(--pitch-mid) 60%, var(--pitch-mid-2));
+    border:1px solid rgba(var(--gold-rgb),0.4);
+    box-shadow:0 30px 80px rgba(0,0,0,0.55);
+    transform:scale(0.92) translateY(10px); transition:transform 0.28s cubic-bezier(.2,.8,.2,1);
+  }
+  .podium-overlay.show .podium-modal{ transform:scale(1) translateY(0); }
+  .podium-close{
+    position:absolute; top:14px; right:14px; width:34px; height:34px; border-radius:50%;
+    border:1px solid rgba(237,230,214,0.25); background:rgba(0,0,0,0.25); color:var(--line);
+    font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+  }
+  .podium-close:hover{ background:rgba(0,0,0,0.4); }
+  #podiumCapture{ position:relative; padding:6px 2px 4px; border-radius:14px; overflow:hidden; }
+  .podium-confetti{ position:absolute; inset:0; pointer-events:none; z-index:1; }
+  .podium-head{ position:relative; z-index:2; text-align:center; margin-bottom:4px; }
+  .podium-kicker{
+    display:inline-flex; align-items:center; gap:7px; font-family:'IBM Plex Mono', monospace;
+    font-size:11.5px; letter-spacing:0.08em; color:var(--gold-bright); text-transform:uppercase;
+    padding:5px 12px; border:1px solid rgba(var(--gold-rgb),0.4); border-radius:999px;
+    background:rgba(var(--gold-rgb),0.1);
+  }
+  .podium-title{
+    font-family:'Bebas Neue', sans-serif; font-weight:400; letter-spacing:0.01em;
+    font-size:clamp(30px, 7vw, 44px); line-height:1; margin:12px 0 4px;
+    color:var(--gold-bright); text-shadow:0 4px 18px rgba(0,0,0,0.4);
+    animation:podiumTitleIn 0.55s cubic-bezier(.2,.8,.2,1) both;
+  }
+  .podium-tourney{ font-family:'IBM Plex Mono', monospace; font-size:12px; color:rgba(237,230,214,0.7); margin:0 0 6px; }
+  .podium-stage{
+    position:relative; z-index:2; display:flex; align-items:flex-end; justify-content:center;
+    gap:14px; margin:22px 0 6px; min-height:170px;
+  }
+  .podium-slot{ display:flex; flex-direction:column; align-items:center; gap:6px; width:118px; opacity:0; }
+  .podium-slot.p-second{ animation:podiumRise 0.5s 0.15s cubic-bezier(.2,.8,.2,1) forwards; }
+  .podium-slot.p-first{ animation:podiumRise 0.6s 0.55s cubic-bezier(.2,.8,.2,1) forwards; }
+  .podium-slot.p-third{ animation:podiumRise 0.5s 0.05s cubic-bezier(.2,.8,.2,1) forwards; }
+  .podium-slot.p-only{ animation:podiumRise 0.6s 0.15s cubic-bezier(.2,.8,.2,1) forwards; width:auto; max-width:220px; }
+  .podium-medal{ font-size:26px; filter:drop-shadow(0 4px 8px rgba(0,0,0,0.4)); }
+  .podium-slot.p-first .club-badge{ width:96px; height:105px; animation:trophyBounce 1.6s ease-in-out 1.1s infinite; }
+  .podium-slot.p-second .club-badge{ width:66px; height:72px; }
+  .podium-slot.p-third .club-badge{ width:58px; height:63px; }
+  .podium-slot.p-only .club-badge{ width:96px; height:105px; animation:trophyBounce 1.6s ease-in-out 0.6s infinite; }
+  .podium-name{
+    font-family:'IBM Plex Sans', sans-serif; font-weight:700; font-size:13.5px; color:var(--line);
+    text-align:center; max-width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .podium-slot.p-first .podium-name{ font-size:16px; animation:goldShimmer 2.2s ease-in-out 1.1s infinite; }
+  .podium-roster{ font-family:'IBM Plex Mono', monospace; font-size:10px; color:rgba(237,230,214,0.55); text-align:center; max-width:112px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .podium-base{
+    width:100%; border-radius:10px 10px 4px 4px; display:flex; align-items:flex-start; justify-content:center;
+    padding-top:8px; font-family:'Bebas Neue', sans-serif; font-size:26px; color:var(--pitch-dark);
+    box-shadow:inset 0 2px 0 rgba(255,255,255,0.35), 0 8px 18px rgba(0,0,0,0.35);
+  }
+  .podium-base.gold{ height:88px; background:linear-gradient(180deg, #FFE08A, #C9A227); }
+  .podium-base.silver{ height:60px; background:linear-gradient(180deg, #EDEDED, #A9AFB6); }
+  .podium-base.bronze{ height:44px; background:linear-gradient(180deg, #E3A76F, #B5651D); }
+  .podium-actions{ position:relative; z-index:2; display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin-top:22px; }
+  .podium-btn{
+    font-family:'IBM Plex Sans', sans-serif; font-weight:700; font-size:13.5px; border-radius:999px;
+    padding:11px 20px; cursor:pointer; border:1px solid transparent; display:inline-flex; align-items:center; gap:8px;
+    transition:transform 0.15s ease, filter 0.15s ease;
+  }
+  .podium-btn:active{ transform:scale(0.97); }
+  .podium-btn.primary{ background:linear-gradient(135deg, var(--gold), var(--gold-dim)); color:var(--pitch-dark); box-shadow:0 8px 20px rgba(var(--gold-rgb),0.3); }
+  .podium-btn.primary:hover{ filter:brightness(1.08); }
+  .podium-btn.ghost{ background:rgba(255,255,255,0.06); color:var(--line); border-color:rgba(237,230,214,0.2); }
+  .podium-btn.ghost:hover{ background:rgba(255,255,255,0.12); }
+  .podium-status{ position:relative; z-index:2; text-align:center; min-height:18px; margin-top:12px; font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--gold-bright); }
+  @keyframes podiumTitleIn{ from{ opacity:0; transform:translateY(-8px); } to{ opacity:1; transform:translateY(0); } }
+  @keyframes podiumRise{ from{ opacity:0; transform:translateY(46px) scale(0.85); } to{ opacity:1; transform:translateY(0) scale(1); } }
+  @keyframes trophyBounce{ 0%,100%{ transform:translateY(0) rotate(0deg); } 25%{ transform:translateY(-6px) rotate(-5deg); } 75%{ transform:translateY(-2px) rotate(5deg); } }
+  @keyframes goldShimmer{ 0%,100%{ text-shadow:0 0 6px rgba(var(--gold-rgb),0.15); } 50%{ text-shadow:0 0 16px rgba(var(--gold-rgb),0.75); } }
+  @media (prefers-reduced-motion: reduce){
+    .podium-slot, .podium-title, .podium-slot .club-badge, .podium-slot .podium-name{ animation:none !important; opacity:1 !important; }
+  }
+  @media (max-width:480px){
+    .podium-stage{ gap:8px; }
+    .podium-slot{ width:96px; }
+  }
 </style>
 </head>
 <body>
@@ -1295,6 +1400,7 @@
         <div class="bcard">
           <div class="blabel">🏆 Campeón</div>
           <div id="champion" class="bslot disabled">A definir</div>
+          <button type="button" class="podium-trigger-btn" data-podium-kind="liga" hidden id="podiumBtnLiga">Compartir podio</button>
         </div>
       </div>
     </div>
@@ -1458,6 +1564,7 @@
     <div class="bcard final-card" style="max-width:360px;">
       <div class="blabel">🏆 Campeón (1º puesto)</div>
       <div id="posChampion" class="bslot disabled">A definir</div>
+      <button type="button" class="podium-trigger-btn" data-podium-kind="pos" hidden id="podiumBtnPos">Compartir campeón</button>
     </div>
   </section>
 
@@ -1656,6 +1763,26 @@
       <button class="btn" type="button" id="confirmNo">Cancelar</button>
       <button class="btn btn-danger" type="button" id="confirmOk">Sí, reiniciar</button>
     </div>
+  </div>
+</div>
+
+<div class="podium-overlay" id="podiumOverlay" hidden>
+  <div class="podium-modal">
+    <button type="button" class="podium-close" id="podiumCloseBtn" aria-label="Cerrar">✕</button>
+    <div id="podiumCapture">
+      <canvas class="podium-confetti" id="podiumConfettiCanvas"></canvas>
+      <div class="podium-head">
+        <span class="podium-kicker">⚽ Fin del torneo</span>
+        <h2 class="podium-title" id="podiumTitle">¡Tenemos campeón!</h2>
+        <p class="podium-tourney" id="podiumTourneyName"></p>
+      </div>
+      <div class="podium-stage" id="podiumStage"></div>
+    </div>
+    <div class="podium-actions">
+      <button type="button" class="podium-btn primary" id="podiumCopyBtn">📋 Copiar imagen</button>
+      <button type="button" class="podium-btn ghost" id="podiumCloseBtn2">Cerrar</button>
+    </div>
+    <p class="podium-status" id="podiumStatus"></p>
   </div>
 </div>
 
@@ -3153,13 +3280,16 @@
   // ---------- liga de posiciones: standings + campeón ----------
   function renderPosChampion(rows){
     const champEl = document.getElementById('posChampion');
+    const btnEl = document.getElementById('podiumBtnPos');
     const top = rows[0] ? posTeamById(rows[0].id) : null;
     if(top){
       champEl.className = 'bslot selected';
       champEl.innerHTML = `<span style="display:inline-flex;align-items:center;gap:8px;min-width:0;">${nameBlockHTML(top, posDisplayName(top), top, 'sz-xs')}</span>`;
+      if(btnEl) btnEl.hidden = false;
     } else {
       champEl.className = 'bslot disabled';
       champEl.textContent = 'A definir';
+      if(btnEl) btnEl.hidden = true;
     }
   }
   function computePosStandings(){
@@ -3293,12 +3423,15 @@
 
   function renderChampion(champTeam){
     const champEl = document.getElementById('champion');
+    const btnEl = document.getElementById('podiumBtnLiga');
     if(champTeam){
       champEl.className = 'bslot selected';
       champEl.innerHTML = `<span style="display:inline-flex;align-items:center;gap:8px;min-width:0;">${nameBlockHTML(champTeam, displayName(champTeam), champTeam, 'sz-xs')}</span>`;
+      if(btnEl) btnEl.hidden = false;
     } else {
       champEl.className = 'bslot disabled';
       champEl.textContent = 'A definir';
+      if(btnEl) btnEl.hidden = true;
     }
   }
 
@@ -3539,6 +3672,7 @@
       <div class="bcard">
         <div class="blabel">🏆 Campeón</div>
         <div id="koChampion" class="bslot ${champTeam?'selected':'disabled'}">${champTeam ? `<span style="display:inline-flex;align-items:center;gap:8px;min-width:0;">${nameBlockHTML(champTeam, koDisplayName(champTeam), champTeam, 'sz-xs')}</span>` : 'A definir'}</div>
+        <button type="button" class="podium-trigger-btn" data-podium-kind="ko" ${champTeam?'':'hidden'} id="podiumBtnKo">Compartir podio</button>
       </div>
     </div>`;
     bracketEl.innerHTML = html;
@@ -4430,6 +4564,205 @@
   if(isGuest && !perms.registro && state.view === 'registro') state.view = 'group';
   document.getElementById('obsLigaBtn').hidden = isGuest;
   document.getElementById('obsKoBtn').hidden = isGuest;
+
+  // ---------- PODIUM SHARE ----------
+  function podiumComputeLiga(){
+    const standings = computeStandings();
+    const n = standings.length;
+    let finalists = [];
+    if(n < 4){
+      const top1 = standings[0] ? teamById(standings[0].id) : null;
+      const top2 = standings[1] ? teamById(standings[1].id) : null;
+      finalists = [top1, top2].filter(Boolean);
+    } else {
+      const winnerA = state.semiWinners.A ? teamById(state.semiWinners.A) : null;
+      const winnerB = state.semiWinners.B ? teamById(state.semiWinners.B) : null;
+      finalists = [winnerA, winnerB].filter(Boolean);
+    }
+    const champion = state.finalWinner ? teamById(state.finalWinner) : null;
+    const second = finalists.find(t => t && (!champion || t.id !== champion.id)) || null;
+    const third = state.thirdWinner ? teamById(state.thirdWinner) : null;
+    return { champion, second, third };
+  }
+  function podiumComputeKo(){
+    const lay = koLayout(state.ko.numTeams);
+    const totalRounds = lay.rounds;
+    const champWinnerId = koWinner(totalRounds-1, 0);
+    const champion = champWinnerId ? koTeamById(champWinnerId) : null;
+    const second = koLoser(totalRounds-1, 0);
+    const third = state.ko.thirdWinner ? koTeamById(state.ko.thirdWinner) : null;
+    return { champion, second, third };
+  }
+  function podiumComputePos(){
+    const rows = computePosStandings();
+    const champion = rows[0] ? posTeamById(rows[0].id) : null;
+    return { champion };
+  }
+  function podiumSlotHTML(team, name, cls, medal, baseCls, baseLabel){
+    const roster = rosterLine(team);
+    return `<div class="podium-slot ${cls}">
+      <div class="podium-medal">${medal}</div>
+      ${badgeHTML(team, '', '', false)}
+      <div class="podium-name">${esc(name)}</div>
+      ${roster ? `<div class="podium-roster">${esc(roster)}</div>` : ''}
+      ${baseCls ? `<div class="podium-base ${baseCls}">${baseLabel}</div>` : ''}
+    </div>`;
+  }
+  function podiumBuildStage(kind){
+    if(kind === 'pos'){
+      const { champion } = podiumComputePos();
+      if(!champion) return null;
+      return {
+        title: '¡Campeón de la Liga!',
+        html: podiumSlotHTML(champion, posDisplayName(champion), 'p-only', '🏆', '', '')
+      };
+    }
+    const data = kind === 'ko' ? podiumComputeKo() : podiumComputeLiga();
+    if(!data.champion) return null;
+    const nameFn = kind === 'ko' ? koDisplayName : displayName;
+    let html = '';
+    if(data.second) html += podiumSlotHTML(data.second, nameFn(data.second), 'p-second', '🥈', 'silver', '2º');
+    html += podiumSlotHTML(data.champion, nameFn(data.champion), 'p-first', '🏆', 'gold', '1º');
+    if(data.third) html += podiumSlotHTML(data.third, nameFn(data.third), 'p-third', '🥉', 'bronze', '3º');
+    return { title: '¡Tenemos campeón!', html };
+  }
+
+  let podiumConfettiRAF = null;
+  function podiumStopConfetti(){
+    if(podiumConfettiRAF){ cancelAnimationFrame(podiumConfettiRAF); podiumConfettiRAF = null; }
+    const canvas = document.getElementById('podiumConfettiCanvas');
+    if(canvas){ const ctx = canvas.getContext('2d'); if(ctx) ctx.clearRect(0,0,canvas.width,canvas.height); }
+  }
+  function podiumStartConfetti(){
+    const canvas = document.getElementById('podiumConfettiCanvas');
+    const capture = document.getElementById('podiumCapture');
+    if(!canvas || !capture) return;
+    podiumStopConfetti();
+    const rect = capture.getBoundingClientRect();
+    canvas.width = Math.max(1, Math.round(rect.width));
+    canvas.height = Math.max(1, Math.round(rect.height));
+    const ctx = canvas.getContext('2d');
+    const colors = ['#C9A227','#E4C465','#FFFFFF','#3B5F63','#8F701C'];
+    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if(reduce) return;
+    const particles = [];
+    for(let i=0;i<55;i++){
+      particles.push({
+        x: Math.random()*canvas.width,
+        y: -20 - Math.random()*canvas.height,
+        w: 4 + Math.random()*4,
+        h: 7 + Math.random()*5,
+        c: colors[Math.floor(Math.random()*colors.length)],
+        vy: 1.1 + Math.random()*1.6,
+        vx: (Math.random()-0.5)*1.1,
+        rot: Math.random()*Math.PI*2,
+        vr: (Math.random()-0.5)*0.18
+      });
+    }
+    function tick(){
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      particles.forEach(p=>{
+        p.y += p.vy; p.x += p.vx; p.rot += p.vr;
+        if(p.y > canvas.height + 20){ p.y = -20; p.x = Math.random()*canvas.width; }
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+        ctx.fillStyle = p.c;
+        ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
+        ctx.restore();
+      });
+      podiumConfettiRAF = requestAnimationFrame(tick);
+    }
+    tick();
+  }
+
+  function podiumOpen(kind){
+    const built = podiumBuildStage(kind);
+    if(!built) return;
+    const overlay = document.getElementById('podiumOverlay');
+    const stage = document.getElementById('podiumStage');
+    const titleEl = document.getElementById('podiumTitle');
+    const tourneyEl = document.getElementById('podiumTourneyName');
+    const statusEl = document.getElementById('podiumStatus');
+    stage.innerHTML = built.html;
+    titleEl.textContent = built.title;
+    const heroTitle = document.querySelector('.hero h1');
+    tourneyEl.textContent = (heroTitle && heroTitle.textContent.trim()) || document.title;
+    statusEl.textContent = '';
+    stage.querySelectorAll('.podium-slot').forEach(el=>{ el.style.animation = 'none'; void el.offsetWidth; el.style.animation = ''; });
+    titleEl.style.animation = 'none'; void titleEl.offsetWidth; titleEl.style.animation = '';
+    overlay.hidden = false;
+    requestAnimationFrame(()=>{
+      overlay.classList.add('show');
+      requestAnimationFrame(podiumStartConfetti);
+    });
+  }
+  function podiumClose(){
+    const overlay = document.getElementById('podiumOverlay');
+    overlay.classList.remove('show');
+    podiumStopConfetti();
+    setTimeout(()=>{ overlay.hidden = true; }, 250);
+  }
+
+  let podiumH2CPromise = null;
+  function podiumEnsureHtml2Canvas(){
+    if(window.html2canvas) return Promise.resolve();
+    if(podiumH2CPromise) return podiumH2CPromise;
+    podiumH2CPromise = new Promise((resolve, reject)=>{
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+      s.onload = ()=>resolve();
+      s.onerror = ()=>{ podiumH2CPromise = null; reject(new Error('load-failed')); };
+      document.head.appendChild(s);
+    });
+    return podiumH2CPromise;
+  }
+  function podiumDownloadBlob(blob){
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'podio.png';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 4000);
+  }
+  function podiumCopyImage(){
+    const statusEl = document.getElementById('podiumStatus');
+    const capture = document.getElementById('podiumCapture');
+    statusEl.textContent = 'Generando imagen…';
+    podiumEnsureHtml2Canvas().then(()=>{
+      return window.html2canvas(capture, { backgroundColor: null, scale: Math.min(2, window.devicePixelRatio || 2), useCORS: true });
+    }).then(canvas=>{
+      canvas.toBlob(blob=>{
+        if(!blob){ statusEl.textContent = 'No se pudo generar la imagen.'; return; }
+        if(navigator.clipboard && window.ClipboardItem){
+          navigator.clipboard.write([ new ClipboardItem({ 'image/png': blob }) ]).then(()=>{
+            statusEl.textContent = '¡Copiada! Pegala en Discord con Ctrl+V (Cmd+V en Mac).';
+          }).catch(()=>{
+            podiumDownloadBlob(blob);
+            statusEl.textContent = 'No se pudo copiar automáticamente — se descargó la imagen.';
+          });
+        } else {
+          podiumDownloadBlob(blob);
+          statusEl.textContent = 'Tu navegador no permite copiar imágenes — se descargó el archivo.';
+        }
+      }, 'image/png');
+    }).catch(()=>{
+      statusEl.textContent = 'No se pudo generar la imagen. Probá de nuevo.';
+    });
+  }
+
+  document.addEventListener('click', (e)=>{
+    const trig = e.target.closest('[data-podium-kind]');
+    if(trig){ podiumOpen(trig.dataset.podiumKind); return; }
+    if(e.target.id === 'podiumCloseBtn' || e.target.id === 'podiumCloseBtn2'){ podiumClose(); return; }
+    if(e.target.id === 'podiumCopyBtn'){ podiumCopyImage(); return; }
+    if(e.target.id === 'podiumOverlay'){ podiumClose(); return; }
+  });
+  document.addEventListener('keydown', (e)=>{
+    if(e.key === 'Escape'){
+      const overlay = document.getElementById('podiumOverlay');
+      if(overlay && !overlay.hidden) podiumClose();
+    }
+  });
 
   renderAll();
   applyView();
