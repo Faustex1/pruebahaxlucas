@@ -3691,20 +3691,13 @@
 
     let pollTimer = null;
     let lastSeq = 0;
-    let primed = false; // true una vez que ya nos pusimos al día con la cola (para no reprocesar el historial viejo)
+    let primed = false; // se pone en true recién cuando ya nos pusimos al día con la cola actual
 
-    function loadLastSeq(){
-      const saved = LS.get('copa_kick_lastseq');
-      if(saved !== null && saved !== undefined && saved !== ''){
-        lastSeq = parseInt(saved, 10) || 0;
-        primed = true; // ya sabemos desde dónde seguir, no hace falta "saltar" nada
-      } else {
-        lastSeq = 0;
-        primed = false;
-      }
-    }
-    function saveLastSeq(){
-      LS.set('copa_kick_lastseq', String(lastSeq));
+    function resetSync(){
+      // Cada conexión arranca "desde ahora": no procesamos nada que ya estuviera
+      // en la cola antes de este momento, ni de esta sesión ni de sesiones anteriores.
+      lastSeq = 0;
+      primed = false;
     }
 
     function setStatus(t, warn){
@@ -3768,11 +3761,9 @@
             data.items.forEach(it=>{ lastSeq = Math.max(lastSeq, it.seq); });
           }
           primed = true;
-          saveLastSeq();
           log('🔄 Sincronizado con la cola — desde ahora se procesan solo los comandos nuevos.');
         } else if(data.items && data.items.length){
           data.items.forEach(it=>{ lastSeq = Math.max(lastSeq, it.seq); handleCommand(it.username); });
-          saveLastSeq();
         }
         const cmd = (data.cfg && data.cfg.cmd) ? data.cfg.cmd : '!entrar';
         setStatus('✅ Conectado — escuchando "' + cmd + '" en el chat de Kick.');
@@ -3788,7 +3779,7 @@
       if(!secret){ setStatus('Pegá la clave del puente.', true); return; }
       LS.set('copa_kick_worker', base);
       LS.set('copa_kick_secret', secret);
-      loadLastSeq();
+      resetSync();
       setConnectedUI(true);
       setStatus('Conectando…');
       log('Conectado al puente.');
