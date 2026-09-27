@@ -4600,7 +4600,9 @@
   function podiumComputePos(){
     const rows = computePosStandings();
     const champion = rows[0] ? posTeamById(rows[0].id) : null;
-    return { champion };
+    const second = rows[1] ? posTeamById(rows[1].id) : null;
+    const third = rows[2] ? posTeamById(rows[2].id) : null;
+    return { champion, second, third };
   }
   function podiumSlotHTML(team, name, cls, medal, baseCls, baseLabel){
     const roster = rosterLine(team);
@@ -4613,22 +4615,15 @@
     </div>`;
   }
   function podiumBuildStage(kind){
-    if(kind === 'pos'){
-      const { champion } = podiumComputePos();
-      if(!champion) return null;
-      return {
-        title: '¡Campeón de la Liga!',
-        html: podiumSlotHTML(champion, posDisplayName(champion), 'p-only', '🏆', '', '')
-      };
-    }
-    const data = kind === 'ko' ? podiumComputeKo() : podiumComputeLiga();
+    const data = kind === 'ko' ? podiumComputeKo() : (kind === 'pos' ? podiumComputePos() : podiumComputeLiga());
     if(!data.champion) return null;
-    const nameFn = kind === 'ko' ? koDisplayName : displayName;
+    const nameFn = kind === 'ko' ? koDisplayName : (kind === 'pos' ? posDisplayName : displayName);
+    const title = kind === 'pos' ? '¡Campeón de la Liga!' : '¡Tenemos campeón!';
     let html = '';
     if(data.second) html += podiumSlotHTML(data.second, nameFn(data.second), 'p-second', '🥈', 'silver', '2º');
     html += podiumSlotHTML(data.champion, nameFn(data.champion), 'p-first', '🏆', 'gold', '1º');
     if(data.third) html += podiumSlotHTML(data.third, nameFn(data.third), 'p-third', '🥉', 'bronze', '3º');
-    return { title: '¡Tenemos campeón!', html };
+    return { title, html };
   }
 
   let podiumConfettiRAF = null;
@@ -4733,7 +4728,7 @@
     const capture = document.getElementById('podiumCapture');
     statusEl.textContent = 'Generando imagen…';
     podiumEnsureHtml2Canvas().then(()=>{
-      return window.html2canvas(capture, { backgroundColor: null, scale: Math.min(2, window.devicePixelRatio || 2), useCORS: true });
+      return window.html2canvas(capture, { backgroundColor: null, scale: Math.max(3, window.devicePixelRatio || 1), useCORS: true, imageTimeout: 15000 });
     }).then(canvas=>{
       canvas.toBlob(blob=>{
         if(!blob){ statusEl.textContent = 'No se pudo generar la imagen.'; return; }
