@@ -1103,7 +1103,7 @@
   #permNote{color:var(--gold-bright); margin-top:10px;}
   /* bloqueos del invitado según sus permisos */
   .lk-playoffs #playoffs .bslot, .lk-ko #koBracket .bslot, .lk-ko #koThirdSection .bslot, .lk-teams .club-badge.editable{pointer-events:none;}
-  .lk-config #config .config-card, .lk-config #koConfig .config-card, .lk-config .reset-row{opacity:0.5;}
+  .lk-config #config .config-card, .lk-config #koConfig .config-card, .lk-config #posConfig .config-card, .lk-config .reset-row{opacity:0.5;}
   .lk-teams .fill-input, .lk-scores .score-box{cursor:default;}
   .reset-btn:disabled{opacity:0.45; cursor:not-allowed;}
 
@@ -1175,6 +1175,10 @@
     <button class="mode-tab" type="button" role="tab" aria-selected="false" data-view="ko">
       <span class="mode-ico">🏆</span>
       <span><b>Eliminatoria directa</b><small>Llaves a un partido · sin puntos</small></span>
+    </button>
+    <button class="mode-tab" type="button" role="tab" aria-selected="false" data-view="pos">
+      <span class="mode-ico">📊</span>
+      <span><b>Liga de Posiciones</b><small>Todos contra todos · sin eliminatoria</small></span>
     </button>
     <button class="mode-tab" type="button" role="tab" aria-selected="false" data-view="registro" id="regTabBtn">
       <span class="mode-ico">📝</span>
@@ -1374,6 +1378,94 @@
 
 </div><!-- /viewKo -->
 
+<div id="viewPos" hidden>
+
+  <section id="posConfig">
+    <div class="sec-head">
+      <div class="sec-head-left"><span class="sec-num">01</span><h2>Configuración</h2></div>
+      <p>Armá el torneo</p>
+    </div>
+    <div class="config-card">
+      <div class="config-row">
+        <div class="config-field">
+          <label for="posNumTeamsInput">Cantidad de equipos</label>
+          <input type="number" id="posNumTeamsInput" min="2" max="12" value="4">
+        </div>
+        <div class="config-field">
+          <label for="posPlayersPerTeamInput">Jugadores por equipo</label>
+          <input type="number" id="posPlayersPerTeamInput" min="1" max="8" value="3">
+        </div>
+        <button class="btn" id="posApplyConfigBtn">Aplicar</button>
+      </div>
+
+      <hr class="divider-line">
+
+      <label class="names-label" for="posNamesTextarea"><span>Sorteo aleatorio — pegá la lista completa de jugadores (uno por línea)</span><span class="names-counter" id="posNamesCounter">0/12</span></label>
+      <textarea class="names-textarea" id="posNamesTextarea" placeholder="martino&#10;srnixx&#10;ariel0405&#10;sensei&#10;fausto"></textarea>
+      <div class="config-actions">
+        <button class="btn btn-primary" id="posDrawBtn">🎲 Sortear equipos</button>
+        <span class="status-msg" id="posDrawStatus"></span>
+      </div>
+    </div>
+  </section>
+
+  <section id="posTeams">
+    <div class="sec-head">
+      <div class="sec-head-left"><span class="sec-num">02</span><h2>Los equipos</h2></div>
+      <div class="sec-head-right">
+        <button class="btn btn-small" id="posRandomNamesBtn" type="button">🎟️ Nombres aleatorios</button>
+        <p>Todos contra todos</p>
+      </div>
+    </div>
+    <div class="teams-grid" id="posTeamsGrid"></div>
+    <p class="rules-line">También podés completar o corregir cualquier campo a mano.</p>
+  </section>
+
+  <section id="posFixtures">
+    <div class="sec-head">
+      <div class="sec-head-left"><span class="sec-num">03</span><h2>Liga</h2></div>
+      <p id="posFixturesSub">6 partidos</p>
+    </div>
+    <div id="posFixturesList"></div>
+    <p class="rules-line">Puntuación: victoria = 3 pts · empate = 1 pt · derrota = 0 pts. Cargá los resultados a medida que se jueguen — la tabla se actualiza sola.</p>
+  </section>
+
+  <section id="posStandings">
+    <div class="sec-head">
+      <div class="sec-head-left"><span class="sec-num">04</span><h2>Tabla de posiciones</h2></div>
+      <p id="posStandingsSub">0 / 6 jugados</p>
+    </div>
+    <div class="table-wrap">
+      <table class="standings">
+        <thead>
+          <tr>
+            <th></th><th style="text-align:left">Equipo</th>
+            <th>PJ</th><th>PG</th><th>PE</th><th>PP</th>
+            <th>GF</th><th>GC</th><th>DG</th><th>PTS</th>
+          </tr>
+        </thead>
+        <tbody id="posStandingsBody"></tbody>
+      </table>
+    </div>
+    <p class="small-note">Sin fase final: el equipo que termine 1º en la tabla, cuando se jueguen todos los partidos, es el campeón.</p>
+  </section>
+
+  <section id="posChampionSection">
+    <div class="sec-head">
+      <div class="sec-head-left"><span class="sec-num">05</span><h2>Campeón</h2></div>
+      <p>Puntero de la tabla</p>
+    </div>
+    <div class="bcard final-card" style="max-width:360px;">
+      <div class="blabel">🏆 Campeón (1º puesto)</div>
+      <div id="posChampion" class="bslot disabled">A definir</div>
+    </div>
+  </section>
+
+  <div class="reset-row">
+    <button class="reset-btn" id="posResetBtn">Reiniciar resultados</button>
+  </div>
+</div><!-- /viewPos -->
+
 <div id="viewRegistro" hidden>
   <section id="registro">
     <div class="sec-head">
@@ -1514,10 +1606,10 @@
           <button class="chip" type="button" data-preset="ko">🏆 Solo eliminatoria</button>
           <button class="chip" type="button" data-preset="full">🔓 Control total</button>
         </div>
-        <label class="perm-item"><input type="checkbox" data-perm="scores"><span><b>Resultados de la liga</b><small>Cargar los goles de cada partido</small></span></label>
+        <label class="perm-item"><input type="checkbox" data-perm="scores"><span><b>Resultados de la liga y liga de posiciones</b><small>Cargar los goles de cada partido</small></span></label>
         <label class="perm-item"><input type="checkbox" data-perm="playoffs"><span><b>Ganadores de semis y final (liga)</b><small>Elegir quién pasa en semifinales, final y 3º puesto</small></span></label>
         <label class="perm-item"><input type="checkbox" data-perm="ko"><span><b>Ganadores de la eliminatoria directa</b><small>Elegir quién avanza en cada llave</small></span></label>
-        <label class="perm-item"><input type="checkbox" data-perm="teams"><span><b>Nombres, jugadores y escudos</b><small>Editar equipos y jugadores, cambiar escudos, nombres aleatorios</small></span></label>
+        <label class="perm-item"><input type="checkbox" data-perm="teams"><span><b>Nombres, jugadores y escudos</b><small>Editar equipos y jugadores (liga, liga de posiciones y eliminatoria), cambiar escudos, nombres aleatorios</small></span></label>
         <label class="perm-item"><input type="checkbox" data-perm="registro"><span><b>Inscripciones</b><small>Ver y administrar usuarios y contraseñas, abrir/cerrar inscripciones</small></span></label>
         <label class="perm-item"><input type="checkbox" data-perm="config"><span><b>Configuración y reinicios</b><small>Cambiar cantidad de equipos, sortear y reiniciar. Incluye todo lo anterior.</small></span></label>
         <p class="modal-note" id="permNote" aria-live="polite"></p>
@@ -1704,6 +1796,22 @@
     return { open:false, usuarios:[] };
   }
 
+  function defaultPosTeam(index, playersPerTeam){
+    return {
+      id: 'p' + (index+1),
+      name: '',
+      color: PALETTE[(index+6) % PALETTE.length],
+      icon: ANIMALS[(index+6) % ANIMALS.length].key,
+      players: new Array(playersPerTeam).fill('')
+    };
+  }
+  function defaultPosState(){
+    const numTeams = 4, playersPerTeam = 3;
+    const teams = [];
+    for(let i=0;i<numTeams;i++) teams.push(defaultPosTeam(i, playersPerTeam));
+    return { numTeams, playersPerTeam, teams, fixtures: [], scores: {} };
+  }
+
   function defaultState(){
     const numTeams = 4, playersPerTeam = 3;
     const teams = [];
@@ -1713,6 +1821,7 @@
       fixtures: [], scores: {},
       semiWinners: { A:null, B:null }, finalWinner:null, thirdWinner:null,
       ko: defaultKoState(),
+      pos: defaultPosState(),
       registro: defaultRegistro()
     };
   }
@@ -1724,6 +1833,7 @@
         const parsed = JSON.parse(raw);
         if(parsed && Array.isArray(parsed.teams)){
           if(!parsed.ko || !Array.isArray(parsed.ko.teams)) parsed.ko = defaultKoState();
+          if(!parsed.pos || !Array.isArray(parsed.pos.teams)) parsed.pos = defaultPosState();
           if(!parsed.registro || !Array.isArray(parsed.registro.usuarios)) parsed.registro = defaultRegistro();
           return parsed;
         }
@@ -1741,7 +1851,7 @@
   //  El torneo se guarda en 4 documentos (liga, liga_res, ko, ko_res) para
   //  que dos personas editando cosas distintas casi nunca se pisen.
   // =====================================================================
-  const SECTION_NAMES = ['liga','liga_res','liga_po','ko','ko_res','registro'];
+  const SECTION_NAMES = ['liga','liga_res','liga_po','ko','ko_res','pos','pos_res','registro'];
   const ICON_KEYS = new Set(ANIMALS.map(a=>a.key));
 
   function clone(o){ return JSON.parse(JSON.stringify(o)); }
@@ -1772,11 +1882,12 @@
     });
     return out.length >= 2 ? out : null;
   }
-  function cleanScores(obj){
+  function cleanScores(obj, prefix){
     const out = {};
+    const re = new RegExp('^' + (prefix||'e') + '\\d{1,2}_' + (prefix||'e') + '\\d{1,2}$');
     if(obj && typeof obj === 'object'){
       Object.keys(obj).slice(0, 200).forEach(k=>{
-        if(!/^e\d{1,2}_e\d{1,2}$/.test(k)) return;
+        if(!re.test(k)) return;
         const r = obj[k];
         if(!r || typeof r !== 'object') return;
         const rec = {};
@@ -1827,6 +1938,8 @@
     liga_po:  s => ({ semiWinners:s.semiWinners, finalWinner:s.finalWinner, thirdWinner:s.thirdWinner }),
     ko:       s => ({ playersPerTeam:s.ko.playersPerTeam, teams:s.ko.teams }),
     ko_res:   s => ({ winners:s.ko.winners, thirdWinner:s.ko.thirdWinner }),
+    pos:      s => ({ playersPerTeam:s.pos.playersPerTeam, teams:s.pos.teams }),
+    pos_res:  s => ({ scores:s.pos.scores }),
     registro: s => ({ open:!!s.registro.open, usuarios:s.registro.usuarios })
   };
   const CLEAN = {
@@ -1836,7 +1949,7 @@
       return teams ? { playersPerTeam:ppt, teams } : null;
     },
     liga_res(raw){
-      return { scores: cleanScores(raw.scores) };
+      return { scores: cleanScores(raw.scores, 'e') };
     },
     liga_po(raw){
       const sw = (raw.semiWinners && typeof raw.semiWinners === 'object') ? raw.semiWinners : {};
@@ -1853,6 +1966,14 @@
     },
     ko_res(raw){
       return { winners: cleanWinners(raw.winners), thirdWinner: cleanId(raw.thirdWinner,'k') };
+    },
+    pos(raw){
+      const ppt = cleanPpt(raw.playersPerTeam);
+      const teams = cleanTeams(raw.teams, 'p', 12, ppt);
+      return teams ? { playersPerTeam:ppt, teams } : null;
+    },
+    pos_res(raw){
+      return { scores: cleanScores(raw.scores, 'p') };
     },
     registro(raw){
       return { open: !!raw.open, usuarios: cleanRegUsuarios(raw.usuarios) };
@@ -1882,6 +2003,15 @@
       state.ko.winners = clone(d.winners);
       state.ko.thirdWinner = d.thirdWinner;
     },
+    pos(d){
+      state.pos.playersPerTeam = d.playersPerTeam;
+      state.pos.teams = clone(d.teams);
+      state.pos.numTeams = state.pos.teams.length;
+      state.pos.fixtures = buildPosFixtures();
+    },
+    pos_res(d){
+      state.pos.scores = clone(d.scores);
+    },
     registro(d){
       state.registro.open = !!d.open;
       state.registro.usuarios = clone(d.usuarios);
@@ -1910,10 +2040,10 @@
   // ---- permisos de quien entra con el link ----
   const PERM_KEYS = ['scores','playoffs','ko','teams','registro','config'];
   const PERM_LABEL = {
-    scores:'cargar resultados de la liga',
+    scores:'cargar resultados de la liga y de la liga de posiciones',
     playoffs:'elegir ganadores de semis y final (liga)',
     ko:'elegir ganadores de la eliminatoria',
-    teams:'editar nombres, jugadores y escudos',
+    teams:'editar nombres, jugadores y escudos (liga, liga de posiciones y eliminatoria)',
     registro:'administrar inscripciones',
     config:'cambiar la configuración y reiniciar'
   };
@@ -1929,10 +2059,10 @@
   }
   function maySend(name, P){
     if(P.config) return true;
-    if(name === 'liga_res') return P.scores;
+    if(name === 'liga_res' || name === 'pos_res') return P.scores;
     if(name === 'liga_po') return P.playoffs;
     if(name === 'ko_res') return P.ko;
-    if(name === 'liga' || name === 'ko') return P.teams;
+    if(name === 'liga' || name === 'ko' || name === 'pos') return P.teams;
     if(name === 'registro') return P.registro;
     return false;
   }
@@ -2328,9 +2458,9 @@
     const P = perms;
     qa('.score-box').forEach(e=>{ e.readOnly = !P.scores; });
     qa('.team-name-input, .player-input').forEach(e=>{ e.readOnly = !P.teams; });
-    qa('#numTeamsInput,#playersPerTeamInput,#koNumTeamsInput,#koPlayersPerTeamInput,#namesTextarea,#koNamesTextarea').forEach(e=>{ e.readOnly = !P.config; });
-    qa('#applyConfigBtn,#drawBtn,#koApplyConfigBtn,#koDrawBtn,#resetBtn,#koResetBtn,#koResetAllBtn').forEach(e=>{ e.disabled = !P.config; });
-    qa('#randomNamesBtn,#koRandomNamesBtn').forEach(e=>{ e.disabled = !P.teams; });
+    qa('#numTeamsInput,#playersPerTeamInput,#koNumTeamsInput,#koPlayersPerTeamInput,#posNumTeamsInput,#posPlayersPerTeamInput,#namesTextarea,#koNamesTextarea,#posNamesTextarea').forEach(e=>{ e.readOnly = !P.config; });
+    qa('#applyConfigBtn,#drawBtn,#koApplyConfigBtn,#koDrawBtn,#posApplyConfigBtn,#posDrawBtn,#resetBtn,#koResetBtn,#koResetAllBtn,#posResetBtn').forEach(e=>{ e.disabled = !P.config; });
+    qa('#randomNamesBtn,#koRandomNamesBtn,#posRandomNamesBtn').forEach(e=>{ e.disabled = !P.teams; });
   }
   function updateGuestLock(){
     const P = perms, cl = document.body.classList;
@@ -2420,6 +2550,10 @@
     SECTION_NAMES.forEach(n=>{
       if(n === 'registro' && !(payload && payload.registro)){
         parts.registro = { open:false, usuarios:[] };   // códigos viejos no tienen inscripciones
+        return;
+      }
+      if((n === 'pos' || n === 'pos_res') && !(payload && payload[n])){
+        parts[n] = (n === 'pos') ? { playersPerTeam: defaultPosState().playersPerTeam, teams: defaultPosState().teams } : { scores: {} };   // códigos viejos no tienen liga de posiciones
         return;
       }
       const c = payload && payload[n] && typeof payload[n] === 'object' ? CLEAN[n](payload[n]) : null;
@@ -2538,11 +2672,14 @@
 
 
   let state = isGuest ? defaultState() : loadState();
-  if(state.view !== 'ko') state.view = 'group';
+  if(state.view !== 'ko' && state.view !== 'pos') state.view = 'group';
   state.teams.forEach((t,i)=>{
     if(!t.icon || !ANIMAL_LABEL[t.icon]) t.icon = ANIMALS[i % ANIMALS.length].key;
   });
   state.ko.teams.forEach((t,i)=>{
+    if(!t.icon || !ANIMAL_LABEL[t.icon]) t.icon = ANIMALS[i % ANIMALS.length].key;
+  });
+  state.pos.teams.forEach((t,i)=>{
     if(!t.icon || !ANIMAL_LABEL[t.icon]) t.icon = ANIMALS[i % ANIMALS.length].key;
   });
 
@@ -2554,6 +2691,11 @@
   function koTeamById(id){ return state.ko.teams.find(t=>t.id===id); }
   function koDisplayName(t){
     const idx = state.ko.teams.indexOf(t) + 1;
+    return t.name && t.name.trim() ? t.name : ('Equipo ' + idx);
+  }
+  function posTeamById(id){ return state.pos.teams.find(t=>t.id===id); }
+  function posDisplayName(t){
+    const idx = state.pos.teams.indexOf(t) + 1;
     return t.name && t.name.trim() ? t.name : ('Equipo ' + idx);
   }
   function initialOf(t){
@@ -2614,6 +2756,17 @@
   }
   if(!state.fixtures || !state.fixtures.length) regenerateFixtures();
 
+  function buildPosFixtures(){
+    return roundRobin(state.pos.teams.map(t=>t.id)).map((matches, i)=>({ jornada:i+1, matches }));
+  }
+  function regeneratePosFixtures(){
+    const ids = state.pos.teams.map(t=>t.id);
+    const rounds = roundRobin(ids);
+    state.pos.fixtures = rounds.map((matches, i)=>({ jornada:i+1, matches }));
+    state.pos.scores = {};
+  }
+  if(!state.pos.fixtures || !state.pos.fixtures.length) regeneratePosFixtures();
+
   // ---------- config: resize teams ----------
   function applyConfig(numTeams, playersPerTeam){
     numTeams = Math.max(2, Math.min(12, numTeams||2));
@@ -2633,6 +2786,29 @@
     state.numTeams = numTeams;
     state.playersPerTeam = playersPerTeam;
     regenerateFixtures();
+    saveState();
+    renderAll();
+  }
+
+  // ---------- liga de posiciones: resize teams ----------
+  function applyPosConfig(numTeams, playersPerTeam){
+    numTeams = Math.max(2, Math.min(12, numTeams||2));
+    playersPerTeam = Math.max(1, Math.min(8, playersPerTeam||1));
+
+    while(state.pos.teams.length < numTeams){
+      state.pos.teams.push(defaultPosTeam(state.pos.teams.length, playersPerTeam));
+    }
+    if(state.pos.teams.length > numTeams){
+      state.pos.teams = state.pos.teams.slice(0, numTeams);
+    }
+    state.pos.teams.forEach(t=>{
+      while(t.players.length < playersPerTeam) t.players.push('');
+      if(t.players.length > playersPerTeam) t.players = t.players.slice(0, playersPerTeam);
+    });
+
+    state.pos.numTeams = numTeams;
+    state.pos.playersPerTeam = playersPerTeam;
+    regeneratePosFixtures();
     saveState();
     renderAll();
   }
@@ -2720,6 +2896,52 @@
     }
   }
 
+  function drawPosTeams(){
+    const raw = document.getElementById('posNamesTextarea').value;
+    let names = raw.split('\n').map(s=>s.trim()).filter(Boolean);
+    if(names.length <= 1){
+      const commaSplit = raw.split(',').map(s=>s.trim()).filter(Boolean);
+      if(commaSplit.length > 1) names = commaSplit;
+    }
+    const statusEl = document.getElementById('posDrawStatus');
+    if(names.length === 0){
+      statusEl.textContent = 'Pegá al menos un nombre para sortear.';
+      statusEl.classList.add('warn');
+      return;
+    }
+
+    const numTeams = parseInt(document.getElementById('posNumTeamsInput').value,10) || state.pos.numTeams;
+    const playersPerTeam = parseInt(document.getElementById('posPlayersPerTeamInput').value,10) || state.pos.playersPerTeam;
+    applyPosConfig(numTeams, playersPerTeam);
+
+    shuffle(names);
+    const needed = state.pos.teams.length * state.pos.playersPerTeam;
+
+    state.pos.teams.forEach(t=> t.players = new Array(state.pos.playersPerTeam).fill(''));
+    let idx = 0;
+    outer:
+    for(let slot=0; slot<state.pos.playersPerTeam; slot++){
+      for(let ti=0; ti<state.pos.teams.length; ti++){
+        if(idx >= names.length) break outer;
+        state.pos.teams[ti].players[slot] = names[idx++];
+      }
+    }
+
+    saveState();
+    renderAll();
+
+    if(names.length === needed){
+      statusEl.textContent = `Listo — ${names.length} jugadores repartidos en ${state.pos.teams.length} equipos.`;
+      statusEl.classList.remove('warn');
+    } else if(names.length < needed){
+      statusEl.textContent = `Se repartieron ${names.length} de ${needed} lugares — quedaron ${needed-names.length} casilleros vacíos para completar a mano.`;
+      statusEl.classList.add('warn');
+    } else {
+      statusEl.textContent = `Había ${names.length} nombres para ${needed} lugares — no se usaron los últimos ${names.length-needed}.`;
+      statusEl.classList.add('warn');
+    }
+  }
+
   // ---------- render: teams ----------
   const teamsGrid = document.getElementById('teamsGrid');
   function teamCardHTML(t, i){
@@ -2795,6 +3017,26 @@
     }
   });
 
+  // ---------- liga de posiciones: render teams ----------
+  const posTeamsGrid = document.getElementById('posTeamsGrid');
+  function renderPosTeams(){
+    renderTeamCardsInto(posTeamsGrid, state.pos.teams);
+  }
+  attachTeamGridHandlers(posTeamsGrid, ()=>state.pos.teams, {
+    onNameChange: (t)=>{
+      document.querySelectorAll(`.team-label[data-team="${t.id}"]`).forEach(el=> el.textContent = posDisplayName(t));
+      computePosStandings();
+    },
+    onIconChange: ()=>{
+      renderPosFixtures();
+      computePosStandings();
+    },
+    onPlayerChange: ()=>{
+      renderPosFixtures();
+      computePosStandings();
+    }
+  });
+
   // ---------- render: fixtures ----------
   const fixturesList = document.getElementById('fixturesList');
   function getScore(key, side){
@@ -2851,6 +3093,133 @@
     computeStandings();
     renderPlayoffs();
   });
+
+  // ---------- liga de posiciones: render fixtures ----------
+  const posFixturesList = document.getElementById('posFixturesList');
+  function getPosScore(key, side){
+    const rec = state.pos.scores[key];
+    if(!rec) return '';
+    const v = rec[side];
+    return (v===undefined || v===null) ? '' : String(v);
+  }
+  function setPosScore(key, side, val){
+    if(!state.pos.scores[key]) state.pos.scores[key] = {};
+    if(val === ''){
+      delete state.pos.scores[key][side];
+      if(Object.keys(state.pos.scores[key]).length===0) delete state.pos.scores[key];
+    } else {
+      state.pos.scores[key][side] = val;
+    }
+  }
+  function renderPosFixtures(){
+    posFixturesList.innerHTML = '';
+    let totalMatches = 0;
+    state.pos.fixtures.forEach(j=>{
+      const block = document.createElement('div');
+      block.className = 'jornada';
+      const label = document.createElement('p');
+      label.className = 'jornada-label';
+      label.textContent = `JORNADA ${j.jornada}`;
+      block.appendChild(label);
+      j.matches.forEach(([a,b])=>{
+        totalMatches++;
+        const ta = posTeamById(a), tb = posTeamById(b);
+        const key = matchKey(a,b);
+        const row = document.createElement('div');
+        row.className = 'match';
+        const rosterA = rosterLine(ta), rosterB = rosterLine(tb);
+        row.innerHTML = `
+          <div class="team-name">${badgeHTML(ta,'sz-sm')}<span class="team-text"><span class="team-label team-text-name" data-team="${a}">${esc(posDisplayName(ta))}</span>${rosterA?`<small class="roster-line">${esc(rosterA)}</small>`:''}</span></div>
+          <input class="score-box" type="text" inputmode="numeric" maxlength="2" data-key="${key}" data-side="a" placeholder="–" value="${getPosScore(key,'a')}">
+          <div class="vs">VS</div>
+          <input class="score-box" type="text" inputmode="numeric" maxlength="2" data-key="${key}" data-side="b" placeholder="–" value="${getPosScore(key,'b')}">
+          <div class="team-name right">${badgeHTML(tb,'sz-sm')}<span class="team-text"><span class="team-label team-text-name" data-team="${b}">${esc(posDisplayName(tb))}</span>${rosterB?`<small class="roster-line">${esc(rosterB)}</small>`:''}</span></div>
+        `;
+        block.appendChild(row);
+      });
+      posFixturesList.appendChild(block);
+    });
+    document.getElementById('posFixturesSub').textContent = `${totalMatches} partido${totalMatches===1?'':'s'}`;
+  }
+  posFixturesList.addEventListener('input', (e)=>{
+    if(!e.target.classList.contains('score-box')) return;
+    let v = e.target.value.replace(/[^0-9]/g,'').slice(0,2);
+    e.target.value = v;
+    setPosScore(e.target.dataset.key, e.target.dataset.side, v);
+    saveState();
+    computePosStandings();
+  });
+
+  // ---------- liga de posiciones: standings + campeón ----------
+  function renderPosChampion(rows){
+    const champEl = document.getElementById('posChampion');
+    const top = rows[0] ? posTeamById(rows[0].id) : null;
+    if(top){
+      champEl.className = 'bslot selected';
+      champEl.innerHTML = `<span style="display:inline-flex;align-items:center;gap:8px;min-width:0;">${nameBlockHTML(top, posDisplayName(top), top, 'sz-xs')}</span>`;
+    } else {
+      champEl.className = 'bslot disabled';
+      champEl.textContent = 'A definir';
+    }
+  }
+  function computePosStandings(){
+    const table = {};
+    state.pos.teams.forEach(t=>{
+      table[t.id] = { id:t.id, name:posDisplayName(t), color:t.color, icon:t.icon, pj:0,pg:0,pe:0,pp:0,gf:0,gc:0,pts:0 };
+    });
+
+    let playedCount = 0, totalMatches = 0;
+
+    state.pos.fixtures.forEach(j=>{
+      j.matches.forEach(([a,b])=>{
+        totalMatches++;
+        const key = matchKey(a,b);
+        const rec = state.pos.scores[key];
+        if(!rec || rec.a===undefined || rec.b===undefined || rec.a==='' || rec.b==='') return;
+        const sa = parseInt(rec.a,10), sb = parseInt(rec.b,10);
+        if(isNaN(sa) || isNaN(sb)) return;
+        playedCount++;
+        const A = table[a], B = table[b];
+        A.pj++; B.pj++;
+        A.gf += sa; A.gc += sb;
+        B.gf += sb; B.gc += sa;
+        if(sa>sb){ A.pg++; A.pts+=3; B.pp++; }
+        else if(sb>sa){ B.pg++; B.pts+=3; A.pp++; }
+        else { A.pe++; B.pe++; A.pts+=1; B.pts+=1; }
+      });
+    });
+
+    const rows = Object.values(table).sort((x,y)=>{
+      if(y.pts !== x.pts) return y.pts - x.pts;
+      const dgx = x.gf-x.gc, dgy = y.gf-y.gc;
+      if(dgy !== dgx) return dgy - dgx;
+      if(y.gf !== x.gf) return y.gf - x.gf;
+      return x.name.localeCompare(y.name);
+    });
+
+    document.getElementById('posStandingsSub').textContent = `${playedCount} / ${totalMatches} jugados`;
+
+    const medals = ['🥇','🥈','🥉'];
+    const body = document.getElementById('posStandingsBody');
+    body.innerHTML = '';
+    rows.forEach((r, idx)=>{
+      const tr = document.createElement('tr');
+      if(idx===0) tr.classList.add('qualifies');
+      const dg = r.gf - r.gc;
+      const posDisplay = idx<3 ? medals[idx] : (idx+1);
+      tr.innerHTML = `
+        <td class="pos-cell">${posDisplay}</td>
+        <td class="name">${nameBlockHTML(r, r.name, posTeamById(r.id), 'sz-xs')}</td>
+        <td>${r.pj}</td><td>${r.pg}</td><td>${r.pe}</td><td>${r.pp}</td>
+        <td>${r.gf}</td><td>${r.gc}</td><td>${dg>0?'+':''}${dg}</td>
+        <td class="pts">${r.pts}</td>
+      `;
+      body.appendChild(tr);
+    });
+
+    renderPosChampion(rows);
+    return rows;
+  }
 
   // ---------- standings ----------
   function computeStandings(){
@@ -3269,7 +3638,7 @@
     }
   }
   // ---------- hero / secciones ----------
-  const VIEW_ELS = { group:'viewGroup', ko:'viewKo', registro:'viewRegistro' };
+  const VIEW_ELS = { group:'viewGroup', ko:'viewKo', pos:'viewPos', registro:'viewRegistro' };
   function updateHero(){
     const v = state.view;
     const kicker = document.getElementById('kicker');
@@ -3286,6 +3655,17 @@
       document.getElementById('statMatchesLabel').textContent = 'partidos';
       document.getElementById('statExtra').textContent = lay.rounds;
       document.getElementById('statExtraLabel').textContent = lay.rounds === 1 ? 'ronda' : 'rondas';
+    } else if(v === 'pos'){
+      extraBox.hidden = false;
+      kicker.textContent = 'HAXBALL · LIGA DE POSICIONES';
+      document.getElementById('statTeams').textContent = state.pos.teams.length;
+      document.getElementById('statTeamsLabel').textContent = 'equipos';
+      document.getElementById('statPlayers').textContent = state.pos.teams.length * state.pos.playersPerTeam;
+      document.getElementById('statPlayersLabel').textContent = 'jugadores';
+      document.getElementById('statMatches').textContent = (state.pos.fixtures||[]).reduce((sum,j)=>sum+j.matches.length,0);
+      document.getElementById('statMatchesLabel').textContent = 'partidos';
+      document.getElementById('statExtra').textContent = '1';
+      document.getElementById('statExtraLabel').textContent = 'grupo único';
     } else if(v === 'registro'){
       const list = state.registro.usuarios;
       const enLista = list.filter(u=> isNameInSorteoPools(u.haxball)).length;
@@ -3370,17 +3750,17 @@
   });
   // ---------- inscripciones (panel del organizador) ----------
   function isNameInSorteoPools(name){
-    return ['namesTextarea', 'koNamesTextarea'].some(id=>{
+    return ['namesTextarea', 'koNamesTextarea', 'posNamesTextarea'].some(id=>{
       const el = document.getElementById(id);
       if(!el) return false;
       return el.value.split('\n').map(s=> s.trim()).some(s=> s.toLowerCase() === (name||'').toLowerCase());
     });
   }
-  // Agrega un nombre a las listas de sorteo (liga y eliminatoria) si todavía no está.
+  // Agrega un nombre a las listas de sorteo (liga, liga de posiciones y eliminatoria) si todavía no está.
   // Devuelve true si lo agregó en al menos una, false si ya estaba en todas.
   function addNameToSorteoPools(name){
     let addedAny = false;
-    ['namesTextarea', 'koNamesTextarea'].forEach(id=>{
+    ['namesTextarea', 'koNamesTextarea', 'posNamesTextarea'].forEach(id=>{
       const el = document.getElementById(id);
       if(!el) return;
       const existing = el.value.split('\n').map(s=> s.trim()).filter(Boolean);
@@ -3896,12 +4276,17 @@
     renderPlayoffs();
     renderKoTeams();
     renderKoBracket();
+    renderPosTeams();
+    renderPosFixtures();
+    computePosStandings();
     renderRegistro();
     updateHero();
     setVal('numTeamsInput', state.numTeams);
     setVal('playersPerTeamInput', state.playersPerTeam);
     setVal('koNumTeamsInput', state.ko.numTeams);
     setVal('koPlayersPerTeamInput', state.ko.playersPerTeam);
+    setVal('posNumTeamsInput', state.pos.numTeams);
+    setVal('posPlayersPerTeamInput', state.pos.playersPerTeam);
   }
 
   // ---------- config buttons ----------
@@ -3927,6 +4312,45 @@
     renderFixtures();
     computeStandings();
     renderPlayoffs();
+  });
+
+  // ---------- liga de posiciones: config buttons ----------
+  document.getElementById('posApplyConfigBtn').addEventListener('click', ()=>{
+    const numTeams = parseInt(document.getElementById('posNumTeamsInput').value,10);
+    const playersPerTeam = parseInt(document.getElementById('posPlayersPerTeamInput').value,10);
+    applyPosConfig(numTeams, playersPerTeam);
+    document.getElementById('posDrawStatus').textContent = '';
+    if(window.updateNamesCounters) window.updateNamesCounters();
+  });
+
+  document.getElementById('posDrawBtn').addEventListener('click', drawPosTeams);
+
+  document.getElementById('posRandomNamesBtn').addEventListener('click', ()=>{
+    const pool = [...RANDOM_TEAM_NAMES];
+    state.pos.teams.forEach(t=>{
+      if(pool.length===0) pool.push(...RANDOM_TEAM_NAMES);
+      const idx = Math.floor(Math.random()*pool.length);
+      t.name = pool.splice(idx,1)[0];
+    });
+    saveState();
+    renderPosTeams();
+    renderPosFixtures();
+    computePosStandings();
+  });
+
+  document.getElementById('posResetBtn').addEventListener('click', async ()=>{
+    if(!(await askConfirm('¿Reiniciar todos los resultados y nombres de la liga de posiciones?' + liveNote()))) return;
+    const numTeams = state.pos.numTeams, playersPerTeam = state.pos.playersPerTeam;
+    state.pos.teams = [];
+    for(let i=0;i<numTeams;i++) state.pos.teams.push(defaultPosTeam(i, playersPerTeam));
+    state.pos.numTeams = numTeams;
+    state.pos.playersPerTeam = playersPerTeam;
+    regeneratePosFixtures();
+    saveState();
+    document.getElementById('posNamesTextarea').value = '';
+    document.getElementById('posDrawStatus').textContent = '';
+    renderAll();
+    if(window.updateNamesCounters) window.updateNamesCounters();
   });
 
   // ---------- knockout buttons ----------
@@ -3982,6 +4406,7 @@
     if(!(await askConfirm('¿Reiniciar todos los resultados, nombres y el bracket de la liga?' + liveNote()))) return;
     const numTeams = state.numTeams, playersPerTeam = state.playersPerTeam;
     const keepKo = state.ko;
+    const keepPos = state.pos; // la liga de posiciones no se borra al reiniciar la liga con playoffs
     const keepRegistro = state.registro; // las inscripciones (usuarios y contraseñas) no se borran al reiniciar
     const keepView = state.view; // la sección en la que estás también se mantiene
     state = defaultState();
@@ -3990,6 +4415,7 @@
     state.teams = [];
     for(let i=0;i<numTeams;i++) state.teams.push(defaultTeam(i, playersPerTeam));
     state.ko = keepKo;
+    state.pos = keepPos;
     state.registro = keepRegistro;
     state.view = keepView;
     regenerateFixtures();
@@ -4109,6 +4535,7 @@
   window.updateNamesCounters = function(){
     updateCounter('namesTextarea', 'numTeamsInput', 'playersPerTeamInput', 'namesCounter');
     updateCounter('koNamesTextarea', 'koNumTeamsInput', 'koPlayersPerTeamInput', 'koNamesCounter');
+    updateCounter('posNamesTextarea', 'posNumTeamsInput', 'posPlayersPerTeamInput', 'posNamesCounter');
   };
 
   ['namesTextarea','numTeamsInput','playersPerTeamInput'].forEach(id=>{
@@ -4119,6 +4546,13 @@
     }
   });
   ['koNamesTextarea','koNumTeamsInput','koPlayersPerTeamInput'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el){
+      el.addEventListener('input', window.updateNamesCounters);
+      el.addEventListener('change', window.updateNamesCounters);
+    }
+  });
+  ['posNamesTextarea','posNumTeamsInput','posPlayersPerTeamInput'].forEach(id=>{
     const el = document.getElementById(id);
     if(el){
       el.addEventListener('input', window.updateNamesCounters);
