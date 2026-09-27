@@ -3627,6 +3627,21 @@
 
     let pollTimer = null;
     let lastSeq = 0;
+    let primed = false; // true una vez que ya nos pusimos al día con la cola (para no reprocesar el historial viejo)
+
+    function loadLastSeq(){
+      const saved = LS.get('copa_kick_lastseq');
+      if(saved !== null && saved !== undefined && saved !== ''){
+        lastSeq = parseInt(saved, 10) || 0;
+        primed = true; // ya sabemos desde dónde seguir, no hace falta "saltar" nada
+      } else {
+        lastSeq = 0;
+        primed = false;
+      }
+    }
+    function saveLastSeq(){
+      LS.set('copa_kick_lastseq', String(lastSeq));
+    }
 
     function setStatus(t, warn){
       statusEl.textContent = t;
@@ -3681,8 +3696,19 @@
           return;
         }
         const data = await r.json();
-        if(data.items && data.items.length){
+        if(!primed){
+          // Primera vez que nos conectamos (o memoria borrada): nos ponemos al día con la cola
+          // sin procesar el historial viejo, para no anotar automáticamente a nadie que no
+          // esté escribiendo el comando en este momento.
+          if(data.items && data.items.length){
+            data.items.forEach(it=>{ lastSeq = Math.max(lastSeq, it.seq); });
+          }
+          primed = true;
+          saveLastSeq();
+          log('🔄 Sincronizado con la cola — desde ahora se procesan solo los comandos nuevos.');
+        } else if(data.items && data.items.length){
           data.items.forEach(it=>{ lastSeq = Math.max(lastSeq, it.seq); handleCommand(it.username); });
+          saveLastSeq();
         }
         const cmd = (data.cfg && data.cfg.cmd) ? data.cfg.cmd : '!entrar';
         setStatus('✅ Conectado — escuchando "' + cmd + '" en el chat de Kick.');
@@ -3698,6 +3724,7 @@
       if(!secret){ setStatus('Pegá la clave del puente.', true); return; }
       LS.set('copa_kick_worker', base);
       LS.set('copa_kick_secret', secret);
+      loadLastSeq();
       setConnectedUI(true);
       setStatus('Conectando…');
       log('Conectado al puente.');
