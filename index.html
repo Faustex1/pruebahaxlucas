@@ -1419,16 +1419,16 @@
 
       <hr class="divider-line">
 
-      <label class="names-label">Importar lista desde Excel</label>
-      <p class="rules-line">Subí un .xlsx con dos columnas: la primera con el usuario de Twitch/Kick, la segunda con el nombre de Haxball. La primera fila (encabezado) se ignora. Se agregan los nuevos y se actualizan los que ya existían (por usuario de chat).</p>
+      <label class="names-label">Importar lista desde Google Sheets</label>
+      <p class="rules-line">Pegá el link de tu hoja de Google Sheets (tiene que estar compartida como "Cualquiera con el enlace puede ver"). Dos columnas: la primera con el usuario de Twitch/Kick, la segunda con el nombre de Haxball. La primera fila (encabezado) se ignora. Se agregan los nuevos y se actualizan los que ya existían (por usuario de chat).</p>
       <div class="config-row">
         <div class="config-field">
-          <label for="regExcelInput">Archivo .xlsx</label>
-          <input type="file" id="regExcelInput" accept=".xlsx,.xls">
+          <label for="regSheetInput">Link de Google Sheets</label>
+          <input type="text" id="regSheetInput" placeholder="https://docs.google.com/spreadsheets/d/....">
         </div>
-        <button class="btn btn-primary" type="button" id="regExcelBtn">📥 Importar Excel</button>
+        <button class="btn btn-primary" type="button" id="regSheetBtn">📥 Importar desde Sheets</button>
       </div>
-      <p class="status-msg" id="regExcelStatus"></p>
+      <p class="status-msg" id="regSheetStatus"></p>
 
       <hr class="divider-line">
 
@@ -1590,7 +1590,7 @@
   </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
 <script>
 (function(){
   const STORE_KEY = 'haxball_torneo_v2';
@@ -3449,50 +3449,88 @@
       syncKickConfig();
     }
   });
-  // ---- Importar usuarios habilitados desde un Excel (.xlsx) ----
-  (function regExcelImport(){
-    const fileInput = document.getElementById('regExcelInput');
-    const btn = document.getElementById('regExcelBtn');
-    const statusEl = document.getElementById('regExcelStatus');
-    if(!fileInput || !btn) return;
-    btn.addEventListener('click', ()=>{
-      statusEl.classList.remove('warn');
-      const file = fileInput.files && fileInput.files[0];
-      if(!file){ statusEl.textContent = 'Elegí un archivo .xlsx primero.'; statusEl.classList.add('warn'); return; }
-      if(typeof XLSX === 'undefined'){ statusEl.textContent = 'No se pudo cargar la librería de Excel. Revisá tu conexión y volvé a intentar.'; statusEl.classList.add('warn'); return; }
-      const reader = new FileReader();
-      reader.onload = (ev)=>{
-        try{
-          const data = new Uint8Array(ev.target.result);
-          const wb = XLSX.read(data, { type:'array' });
-          const sheet = wb.Sheets[wb.SheetNames[0]];
-          const rows = XLSX.utils.sheet_to_json(sheet, { header:1, raw:false, defval:'' });
-          let agregados = 0, actualizados = 0, invalidas = 0;
-          rows.forEach((row, idx)=>{
-            if(idx === 0) return; // encabezado
-            const chat = String(row[0] || '').trim();
-            const haxball = String(row[1] || '').trim();
-            if(!chat || !haxball){ if(chat || haxball) invalidas++; return; }
-            const existente = state.registro.usuarios.find(u=> (u.chat||'').toLowerCase() === chat.toLowerCase());
-            if(existente){
-              existente.haxball = haxball.slice(0,40);
-              actualizados++;
-            } else {
-              state.registro.usuarios.push({ id:newRegId(), haxball:haxball.slice(0,40), chat:chat.slice(0,40) });
-              agregados++;
-            }
-          });
-          saveState();
-          renderRegistro();
-          syncKickConfig();
-          statusEl.textContent = `Listo — ${agregados} agregados, ${actualizados} actualizados` + (invalidas ? `, ${invalidas} filas ignoradas por datos incompletos` : '') + '.';
-          fileInput.value = '';
-        } catch(err){
-          statusEl.textContent = 'No se pudo leer el archivo. ¿Es un .xlsx válido?';
-          statusEl.classList.add('warn');
+  // ---- Importar usuarios habilitados desde un link de Google Sheets ----
+  (function regSheetImport(){
+    const linkInput = document.getElementById('regSheetInput');
+    const btn = document.getElementById('regSheetBtn');
+    const statusEl = document.getElementById('regSheetStatus');
+    if(!linkInput || !btn) return;
+
+    linkInput.value = LS.get('copa_sheet_link') || '';
+
+    // Parser CSV simple: soporta campos entre comillas con comas y comillas escapadas ("").
+    function parseCSV(text){
+      const rows = [];
+      let row = [], field = '', inQuotes = false;
+      for(let i=0; i<text.length; i++){
+        const c = text[i];
+        if(inQuotes){
+          if(c === '"'){
+            if(text[i+1] === '"'){ field += '"'; i++; }
+            else inQuotes = false;
+          } else field += c;
+        } else {
+          if(c === '"') inQuotes = true;
+          else if(c === ','){ row.push(field); field = ''; }
+          else if(c === '\n' || c === '\r'){
+            if(c === '\r' && text[i+1] === '\n') i++;
+            row.push(field); field = '';
+            rows.push(row); row = [];
+          } else field += c;
         }
-      };
-      reader.readAsArrayBuffer(file);
+      }
+      if(field !== '' || row.length){ row.push(field); rows.push(row); }
+      return rows.filter(r => r.length > 1 || (r[0] || '').trim() !== '');
+    }
+
+    // Saca el ID de la hoja (y el gid, si viene) de cualquier link de Google Sheets pegado.
+    function buildCsvUrl(link){
+      const idMatch = link.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+      if(!idMatch) return null;
+      const id = idMatch[1];
+      const gidMatch = link.match(/[?#&]gid=([0-9]+)/);
+      const gid = gidMatch ? gidMatch[1] : null;
+      let url = 'https://docs.google.com/spreadsheets/d/' + id + '/gviz/tq?tqx=out:csv';
+      if(gid) url += '&gid=' + gid;
+      return url;
+    }
+
+    btn.addEventListener('click', async ()=>{
+      statusEl.classList.remove('warn');
+      const link = linkInput.value.trim();
+      if(!link){ statusEl.textContent = 'Pegá el link de la hoja primero.'; statusEl.classList.add('warn'); return; }
+      const csvUrl = buildCsvUrl(link);
+      if(!csvUrl){ statusEl.textContent = 'Ese link no parece ser de Google Sheets.'; statusEl.classList.add('warn'); return; }
+      LS.set('copa_sheet_link', link);
+      statusEl.textContent = 'Cargando…';
+      try{
+        const r = await fetch(csvUrl);
+        if(!r.ok){ statusEl.textContent = 'No se pudo leer la hoja — revisá que esté compartida como "Cualquiera con el enlace puede ver".'; statusEl.classList.add('warn'); return; }
+        const text = await r.text();
+        const rows = parseCSV(text);
+        let agregados = 0, actualizados = 0, invalidas = 0;
+        rows.forEach((row, idx)=>{
+          if(idx === 0) return; // encabezado
+          const chat = String(row[0] || '').trim();
+          const haxball = String(row[1] || '').trim();
+          if(!chat || !haxball){ if(chat || haxball) invalidas++; return; }
+          const existente = state.registro.usuarios.find(u=> (u.chat||'').toLowerCase() === chat.toLowerCase());
+          if(existente){
+            existente.haxball = haxball.slice(0,40);
+            actualizados++;
+          } else {
+            state.registro.usuarios.push({ id:newRegId(), haxball:haxball.slice(0,40), chat:chat.slice(0,40) });
+            agregados++;
+          }
+        });
+        saveState();
+        renderRegistro();
+        syncKickConfig();
+        statusEl.textContent = `Listo — ${agregados} agregados, ${actualizados} actualizados` + (invalidas ? `, ${invalidas} filas ignoradas por datos incompletos` : '') + '.';
+      } catch(err){
+        statusEl.textContent = 'No se pudo leer la hoja. Revisá el link y que esté compartida públicamente.';
+        statusEl.classList.add('warn');
+      }
     });
   })();
   // ---- Twitch: auto-anotación por comando de chat (solo lectura, sin backend) ----
