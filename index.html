@@ -1595,7 +1595,7 @@
 (function(){
   const STORE_KEY = 'haxball_torneo_v2';
   function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-  const PALETTE = ['#C9A227','#3C6E71','#8B3A3A','#556B2F','#6B4C7A','#B5654E','#3B5A6B','#8A6D3B','#4C5B7A','#A6673A','#4E7A5D','#7A3B54'];
+  const PALETTE = ['#FF2E9A','#00E5FF','#FFD60A','#39FF14','#B026FF','#FF6B00','#00FFC2','#FF3366','#3D9BFF','#FFF01F','#FF00E5','#0AFFB0'];
 
   const RANDOM_TEAM_NAMES = [
     'Real Montaña','Atlético Central','Deportivo Imperial','Unión del Sur','Club Atlético Norte',
@@ -4004,6 +4004,7 @@
 (function(){
   const PALETTE_KEY = 'copa_palette';
   const PALETTES = [
+    { id:'neon',     name:'Neon Streamer',      gold:'#FF2E9A', bright:'#FF7EDB', dim:'#9B1E6B', pitch:'#00E5FF' },
     { id:'dorado',   name:'Dorado (original)', gold:'#C9A227', bright:'#E4C465', dim:'#8F701C', pitch:'#3B5F63' },
     { id:'azul',     name:'Azul Real',         gold:'#3B82C4', bright:'#7FB8EC', dim:'#1F4E78', pitch:'#39415C' },
     { id:'esmeralda',name:'Esmeralda',         gold:'#2E9E5B', bright:'#70CB94', dim:'#1C5E37', pitch:'#2F5B4A' },
@@ -4031,7 +4032,7 @@
   }
 
   function getSavedPaletteId(){
-    try{ return localStorage.getItem(PALETTE_KEY) || 'dorado'; }catch(e){ return 'dorado'; }
+    try{ return localStorage.getItem(PALETTE_KEY) || 'neon'; }catch(e){ return 'neon'; }
   }
   function savePaletteId(id){
     try{ localStorage.setItem(PALETTE_KEY, id); }catch(e){}
