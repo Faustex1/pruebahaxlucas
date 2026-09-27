@@ -1420,11 +1420,11 @@
       <hr class="divider-line">
 
       <label class="names-label">Importar lista desde Google Sheets</label>
-      <p class="rules-line">Pegá el link de tu hoja de Google Sheets (tiene que estar compartida como "Cualquiera con el enlace puede ver"). Dos columnas: la primera con el usuario de Twitch/Kick, la segunda con el nombre de Haxball. La primera fila (encabezado) se ignora. Se agregan los nuevos y se actualizan los que ya existían (por usuario de chat).</p>
+      <p class="rules-line">Hoja fija de la Copa (no se puede cambiar). Tiene que estar compartida como "Cualquiera con el enlace puede ver". Dos columnas: la primera con el usuario de Twitch/Kick, la segunda con el nombre de Haxball. La primera fila (encabezado) se ignora. Se agregan los nuevos y se actualizan los que ya existían (por usuario de chat).</p>
       <div class="config-row">
         <div class="config-field">
           <label for="regSheetInput">Link de Google Sheets</label>
-          <input type="text" id="regSheetInput" placeholder="https://docs.google.com/spreadsheets/d/....">
+          <input type="text" id="regSheetInput" value="https://docs.google.com/spreadsheets/d/1EQXqm2U75sxcOqUfLQfnHr95SkE0n8vhiuqE8lKXH_4/edit?usp=sharing" readonly>
         </div>
         <button class="btn btn-primary" type="button" id="regSheetBtn">📥 Importar desde Sheets</button>
       </div>
@@ -1437,11 +1437,11 @@
       <div class="config-row">
         <div class="config-field">
           <label for="twitchChannelInput">Canal de Twitch</label>
-          <input type="text" id="twitchChannelInput" maxlength="30" placeholder="ej: lucaspazo27" autocomplete="off" spellcheck="false">
+          <input type="text" id="twitchChannelInput" maxlength="30" value="lucaspazo27" autocomplete="off" spellcheck="false" readonly>
         </div>
         <div class="config-field">
           <label for="twitchCmdInput">Comando</label>
-          <input type="text" id="twitchCmdInput" maxlength="20" placeholder="!entrar" autocomplete="off" spellcheck="false">
+          <input type="text" id="twitchCmdInput" maxlength="20" value="!entrar" autocomplete="off" spellcheck="false" readonly>
         </div>
         <button class="btn btn-primary" type="button" id="twitchConnectBtn">🔌 Conectar</button>
         <button class="btn btn-small btn-danger" type="button" id="twitchDisconnectBtn" hidden>Desconectar</button>
@@ -1459,11 +1459,11 @@
       <div class="config-row">
         <div class="config-field">
           <label for="kickWorkerInput">URL del puente (Cloudflare Worker)</label>
-          <input type="text" id="kickWorkerInput" placeholder="https://tu-worker.workers.dev" autocomplete="off" spellcheck="false">
+          <input type="text" id="kickWorkerInput" value="https://odd-dawn-19eb.agus0832123.workers.dev" autocomplete="off" spellcheck="false" readonly>
         </div>
         <div class="config-field">
           <label for="kickSecretInput">Clave del puente</label>
-          <input type="password" id="kickSecretInput" placeholder="la que pusiste en KICK_SHARED_SECRET" autocomplete="off" spellcheck="false">
+          <input type="password" id="kickSecretInput" value="copahax2026xyz" autocomplete="off" spellcheck="false" readonly>
         </div>
         <button class="btn btn-primary" type="button" id="kickConnectBtn">🔌 Conectar</button>
         <button class="btn btn-small btn-danger" type="button" id="kickDisconnectBtn" hidden>Desconectar</button>
@@ -3456,7 +3456,9 @@
     const statusEl = document.getElementById('regSheetStatus');
     if(!linkInput || !btn) return;
 
-    linkInput.value = LS.get('copa_sheet_link') || '';
+    linkInput.value = 'https://docs.google.com/spreadsheets/d/1EQXqm2U75sxcOqUfLQfnHr95SkE0n8vhiuqE8lKXH_4/edit?usp=sharing';
+    linkInput.readOnly = true;
+    LS.set('copa_sheet_link', linkInput.value);
 
     // Parser CSV simple: soporta campos entre comillas con comas y comillas escapadas ("").
     function parseCSV(text){
@@ -3544,8 +3546,10 @@
     const logBox = document.getElementById('twitchLog');
     if(!channelInput || !cmdInput || !connectBtn) return;
 
-    channelInput.value = LS.get('copa_twitch_channel') || '';
-    cmdInput.value = LS.get('copa_twitch_cmd') || '!entrar';
+    channelInput.value = 'lucaspazo27';
+    cmdInput.value = '!entrar';
+    channelInput.readOnly = true;
+    cmdInput.readOnly = true;
 
     let ws = null;
     let wantConnected = false;
@@ -3568,8 +3572,8 @@
     function setConnectedUI(connected){
       connectBtn.hidden = connected;
       disconnectBtn.hidden = !connected;
-      channelInput.readOnly = connected;
-      cmdInput.readOnly = connected;
+      channelInput.readOnly = true;
+      cmdInput.readOnly = true;
     }
 
     function handleCommand(username){
@@ -3598,12 +3602,10 @@
     }
 
     function connect(){
-      let channel = (channelInput.value || '').trim().toLowerCase().replace(/^#/, '');
-      if(!channel){ setStatus('Poné el nombre de tu canal de Twitch primero (sin @, tal cual aparece en la URL de twitch.tv/).', true); return; }
+      let channel = 'lucaspazo27';
       channelInput.value = channel;
       LS.set('copa_twitch_channel', channel);
-      let cmd = (cmdInput.value || '').trim();
-      if(!cmd){ cmd = '!entrar'; }
+      let cmd = '!entrar';
       cmdInput.value = cmd;
       LS.set('copa_twitch_cmd', cmd);
 
@@ -3680,8 +3682,12 @@
     const logBox = document.getElementById('kickLog');
     if(!workerInput || !secretInput || !connectBtn) return;
 
-    workerInput.value = LS.get('copa_kick_worker') || '';
-    secretInput.value = LS.get('copa_kick_secret') || '';
+    workerInput.value = 'https://odd-dawn-19eb.agus0832123.workers.dev';
+    secretInput.value = 'copahax2026xyz';
+    workerInput.readOnly = true;
+    secretInput.readOnly = true;
+    LS.set('copa_kick_worker', workerInput.value);
+    LS.set('copa_kick_secret', secretInput.value);
 
     let pollTimer = null;
     let lastSeq = 0;
@@ -3718,8 +3724,8 @@
     function setConnectedUI(connected){
       connectBtn.hidden = connected;
       disconnectBtn.hidden = !connected;
-      workerInput.readOnly = connected;
-      secretInput.readOnly = connected;
+      workerInput.readOnly = true;
+      secretInput.readOnly = true;
     }
 
     function handleCommand(username){
