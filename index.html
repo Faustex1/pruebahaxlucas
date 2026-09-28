@@ -3255,7 +3255,7 @@
     teams.forEach((t, i)=>{
       const card = document.createElement('div');
       card.className = 'team-card';
-      card.style.setProperty('--team-color', t.color);
+      card.style.removeProperty('--team-color'); /* mismo color para todos: usa el color de la paleta (--gold) */
       card.innerHTML = teamCardHTML(t, i);
       gridEl.appendChild(card);
     });
