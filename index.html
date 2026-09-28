@@ -28,6 +28,19 @@
     --danger:#A6432E;
     --shadow: 0 1px 0 rgba(11,36,27,0.06);
     --card-glow: none;
+    /* colores de equipo: salen de la paleta activa de la pagina */
+    --tc1: var(--gold);
+    --tc2: var(--pitch-bright);
+    --tc3: var(--gold-bright);
+    --tc4: color-mix(in srgb, var(--gold) 50%, var(--pitch-bright));
+    --tc5: var(--gold-dim);
+    --tc6: color-mix(in srgb, var(--pitch-bright) 55%, white);
+    --tc7: color-mix(in srgb, var(--gold-bright) 50%, var(--pitch-bright));
+    --tc8: color-mix(in srgb, var(--gold-dim) 50%, var(--pitch-bright));
+    --tc9: color-mix(in srgb, var(--pitch-bright) 60%, var(--gold-dim));
+    --tc10: color-mix(in srgb, var(--gold) 60%, white);
+    --tc11: color-mix(in srgb, var(--gold-dim) 60%, var(--gold-bright));
+    --tc12: color-mix(in srgb, var(--pitch-bright) 50%, var(--gold-bright));
   }
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]){
@@ -1250,6 +1263,117 @@
     .podium-stage{ gap:8px; }
     .podium-slot{ width:96px; }
   }
+
+  /* ================= STREAMER NEON LAYER ================= */
+  ::selection{background:var(--gold-bright); color:#0B0D10;}
+  *{scrollbar-color:var(--gold) var(--paper-2);}
+  body{background:transparent;}
+  body::before{
+    content:""; position:fixed; inset:-10%; z-index:-2; pointer-events:none;
+    background:
+      radial-gradient(560px 560px at 8% 12%, rgba(var(--gold-rgb),0.18), transparent 65%),
+      radial-gradient(600px 600px at 92% 28%, rgba(var(--pitch-bright-rgb),0.17), transparent 65%),
+      radial-gradient(520px 520px at 50% 105%, color-mix(in srgb, var(--tc4) 24%, transparent), transparent 65%);
+    animation:auroraDrift 16s ease-in-out infinite alternate;
+  }
+  body::after{
+    content:""; position:fixed; inset:0; z-index:-1; pointer-events:none;
+    background-image:
+      linear-gradient(rgba(var(--pitch-bright-rgb),0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(var(--pitch-bright-rgb),0.06) 1px, transparent 1px);
+    background-size:44px 44px;
+    -webkit-mask-image:radial-gradient(ellipse 80% 60% at 50% 0%, #000 0%, transparent 75%);
+    mask-image:radial-gradient(ellipse 80% 60% at 50% 0%, #000 0%, transparent 75%);
+  }
+  :root[data-theme="light"] body::before, :root[data-theme="light"] body::after{opacity:0.35;}
+  @keyframes auroraDrift{
+    from{transform:translate3d(-2%,-1%,0) scale(1);}
+    to{transform:translate3d(3%,2%,0) scale(1.12);}
+  }
+  @keyframes gradShift{ from{background-position:0% 50%;} to{background-position:100% 50%;} }
+  @keyframes glowPulse{
+    0%,100%{box-shadow:0 0 10px rgba(var(--gold-rgb),0.26), 0 0 22px rgba(var(--pitch-bright-rgb),0.11);}
+    50%{box-shadow:0 0 18px rgba(var(--gold-rgb),0.45), 0 0 38px rgba(var(--pitch-bright-rgb),0.22);}
+  }
+
+  /* hero */
+  .hero{
+    border-bottom:2px solid var(--gold);
+    box-shadow:0 1px 0 rgba(var(--pitch-bright-rgb),0.45), 0 10px 50px rgba(var(--gold-rgb),0.22), 0 0 90px rgba(var(--pitch-bright-rgb),0.14);
+  }
+  .hero h1{
+    background:linear-gradient(100deg, #FFFFFF 0%, var(--gold-bright) 35%, var(--pitch-bright) 70%, var(--gold-bright) 100%);
+    background-size:220% 100%;
+    -webkit-background-clip:text; background-clip:text;
+    animation:gradShift 6s linear infinite alternate;
+    filter:drop-shadow(0 0 12px rgba(var(--gold-rgb),0.41)) drop-shadow(0 0 30px rgba(var(--pitch-bright-rgb),0.22));
+  }
+  .hero-cover{filter:drop-shadow(0 0 34px rgba(var(--gold-rgb),0.29)) drop-shadow(0 10px 30px rgba(0,0,0,0.45));}
+  .hero-stats{border-top-color:rgba(var(--gold-rgb),0.34);}
+  .stat b{text-shadow:0 0 14px rgba(var(--gold-rgb),0.52), 0 0 32px rgba(var(--pitch-bright-rgb),0.26);}
+  .sponsor-line{
+    border-color:var(--gold-bright); color:#fff;
+    background:linear-gradient(90deg, rgba(var(--gold-rgb),0.17), rgba(var(--pitch-bright-rgb),0.17));
+    animation:glowPulse 3.2s ease-in-out infinite;
+  }
+  .sponsor-line::before{color:var(--gold-bright); text-shadow:0 0 5px var(--gold);}
+
+  /* section headings */
+  .sec-head{
+    border-bottom:2px solid transparent;
+    border-image:linear-gradient(90deg, var(--gold), var(--pitch-bright) 55%, transparent) 1;
+  }
+  .sec-num{
+    color:var(--gold-bright); border-color:var(--gold);
+    box-shadow:0 0 12px rgba(var(--gold-rgb),0.41), inset 0 0 9px rgba(var(--gold-rgb),0.19);
+    text-shadow:0 0 5px var(--gold);
+  }
+  .sec-head h2{text-shadow:0 0 18px rgba(var(--gold-rgb),0.38);}
+
+  /* buttons */
+  .btn:hover{
+    border-color:var(--gold-bright);
+    box-shadow:0 0 14px rgba(var(--gold-rgb),0.34), 0 0 26px rgba(var(--pitch-bright-rgb),0.15);
+  }
+  .btn-primary{
+    background:linear-gradient(120deg, var(--gold), var(--pitch-bright)); background-size:160% 100%;
+    border-color:transparent; color:#07090C;
+    box-shadow:0 0 18px rgba(var(--gold-rgb),0.41), 0 0 36px rgba(var(--pitch-bright-rgb),0.21);
+  }
+  .btn-primary:hover{
+    background-position:100% 0; border-color:transparent;
+    box-shadow:0 0 26px rgba(var(--gold-rgb),0.6), 0 0 54px rgba(var(--pitch-bright-rgb),0.34);
+  }
+  .btn-danger:hover{box-shadow:0 0 16px rgba(255,51,102,0.55);}
+
+  /* mode tabs */
+  .mode-tab:hover{border-color:rgba(var(--pitch-bright-rgb),0.6);}
+  .mode-tab.active{
+    border-color:var(--gold);
+    box-shadow:0 0 0 1px rgba(var(--gold-rgb),0.52), 0 0 22px rgba(var(--gold-rgb),0.38), 0 0 40px rgba(var(--pitch-bright-rgb),0.19);
+  }
+
+  /* team cards: glow con el color de cada equipo */
+  .team-card{border-color:color-mix(in srgb, var(--team-color, var(--gold)) 38%, var(--card-border));}
+  .team-card::before{height:5px; box-shadow:0 0 10px color-mix(in srgb, var(--team-color, var(--gold)) 70%, transparent);}
+  .team-card:hover{
+    border-color:var(--team-color, var(--gold));
+    box-shadow:0 0 0 1px var(--team-color, var(--gold)), 0 12px 38px color-mix(in srgb, var(--team-color, var(--gold)) 38%, transparent), var(--card-glow);
+  }
+  .team-card h3 .num{box-shadow:0 0 9px color-mix(in srgb, var(--team-color, var(--gold)) 70%, transparent);}
+
+  /* inputs, tablas */
+  .fill-input:focus{outline:none; box-shadow:0 2px 0 0 var(--pitch-bright), 0 10px 20px -10px rgba(var(--pitch-bright-rgb),0.68);}
+  .table-wrap{box-shadow:0 0 0 1px rgba(var(--gold-rgb),0.22), 0 10px 40px rgba(var(--gold-rgb),0.09);}
+  table.standings thead tr{background:linear-gradient(90deg, rgba(var(--gold-rgb),0.17), rgba(var(--pitch-bright-rgb),0.14)), var(--paper-2);}
+  table.standings th{color:var(--gold-bright);}
+  table.standings tbody tr:hover{background:rgba(var(--gold-rgb),0.08);}
+  table.standings td.pts{text-shadow:0 0 10px rgba(var(--gold-rgb),0.45);}
+
+  @media (prefers-reduced-motion: reduce){
+    body::before, .hero h1, .sponsor-line{animation:none;}
+  }
+  /* ================= /STREAMER NEON LAYER ================= */
 </style>
 </head>
 <body>
@@ -1819,7 +1943,16 @@
 (function(){
   const STORE_KEY = 'haxball_torneo_v2';
   function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-  const PALETTE = ['#FF2E9A','#00E5FF','#FFD60A','#39FF14','#B026FF','#FF6B00','#00FFC2','#FF3366','#3D9BFF','#FFF01F','#FF00E5','#0AFFB0'];
+  const LEGACY_PALETTE = ['#FF2E9A','#00E5FF','#FFD60A','#39FF14','#B026FF','#FF6B00','#00FFC2','#FF3366','#3D9BFF','#FFF01F','#FF00E5','#0AFFB0'];
+  const PALETTE = LEGACY_PALETTE.map((_,i)=>'var(--tc'+(i+1)+')');
+  function themeColor(c, i){
+    if(typeof c === 'string'){
+      if(/^var\(--tc(1[0-2]|[1-9])\)$/.test(c)) return c;
+      const k = LEGACY_PALETTE.indexOf(c.toUpperCase());
+      if(k >= 0) return PALETTE[k];
+    }
+    return PALETTE[i % PALETTE.length];
+  }
 
   const RANDOM_TEAM_NAMES = [
     'Real Montaña','Atlético Central','Deportivo Imperial','Unión del Sur','Club Atlético Norte',
@@ -1995,7 +2128,7 @@
 
   // ---- limpieza de datos que llegan de otros (nunca se confía en ellos) ----
   function cleanStr(v, max){ return typeof v === 'string' ? v.slice(0, max) : ''; }
-  function cleanColor(v, i){ return (typeof v === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(v)) ? v : PALETTE[i % PALETTE.length]; }
+  function cleanColor(v, i){ return themeColor(v, i); }
   function cleanId(v, prefix){ return (typeof v === 'string' && new RegExp('^' + prefix + '\\d{1,2}$').test(v)) ? v : null; }
   function cleanTeams(arr, prefix, maxTeams, ppt){
     if(!Array.isArray(arr)) return null;
@@ -3094,7 +3227,7 @@
     teams.forEach((t, i)=>{
       const card = document.createElement('div');
       card.className = 'team-card';
-      card.style.setProperty('--team-color', t.color);
+      card.style.setProperty('--team-color', themeColor(t.color, i));
       card.innerHTML = teamCardHTML(t, i);
       gridEl.appendChild(card);
     });
@@ -4781,7 +4914,7 @@
 (function(){
   const PALETTE_KEY = 'copa_palette';
   const PALETTES = [
-    { id:'neon',     name:'Neon Streamer',      gold:'#FF2E9A', bright:'#FF7EDB', dim:'#9B1E6B', pitch:'#00E5FF' },
+    { id:'neon',     name:'Neon Streamer',      gold:'#FF2EA6', bright:'#FF8AE6', dim:'#B0157A', pitch:'#00F0FF' },
     { id:'dorado',   name:'Dorado (original)', gold:'#C9A227', bright:'#E4C465', dim:'#8F701C', pitch:'#3B5F63' },
     { id:'azul',     name:'Azul Real',         gold:'#3B82C4', bright:'#7FB8EC', dim:'#1F4E78', pitch:'#39415C' },
     { id:'esmeralda',name:'Esmeralda',         gold:'#2E9E5B', bright:'#70CB94', dim:'#1C5E37', pitch:'#2F5B4A' },
