@@ -5088,12 +5088,12 @@
     document.body.classList.toggle('lb-open', open);
     tab.setAttribute('aria-expanded', open ? 'true' : 'false');
     panel.setAttribute('aria-hidden', open ? 'false' : 'true');
-    if(persist){ try{ localStorage.setItem(LS_KEY, open ? '1' : '0'); }catch(e){} }
+    /* el estado ya no se guarda: siempre arranca cerrado */
   }
   function isOpen(){ return document.body.classList.contains('lb-open'); }
-  var saved = null;
-  try{ saved = localStorage.getItem(LS_KEY); }catch(e){}
-  setOpen(saved === null ? window.innerWidth >= DOCK_MIN : saved === '1', false);
+  // Siempre arranca cerrado al entrar a la página (y borra lo que se guardaba antes)
+  try{ localStorage.removeItem(LS_KEY); }catch(e){}
+  setOpen(false, false);
 
   tab.addEventListener('click', function(){ setOpen(!isOpen(), true); });
   closeBtn.addEventListener('click', function(){ setOpen(false, true); });
@@ -5250,12 +5250,12 @@
     document.body.classList.toggle('lbl-open', open);
     tab.setAttribute('aria-expanded', open ? 'true' : 'false');
     panel.setAttribute('aria-hidden', open ? 'false' : 'true');
-    if(persist){ try{ localStorage.setItem(LS_KEY, open ? '1' : '0'); }catch(e){} }
+    /* el estado ya no se guarda: siempre arranca cerrado */
   }
   function isOpen(){ return document.body.classList.contains('lbl-open'); }
-  var saved = null;
-  try{ saved = localStorage.getItem(LS_KEY); }catch(e){}
-  setOpen(saved === null ? window.innerWidth >= DOCK_MIN : saved === '1', false);
+  // Siempre arranca cerrado al entrar a la página (y borra lo que se guardaba antes)
+  try{ localStorage.removeItem(LS_KEY); }catch(e){}
+  setOpen(false, false);
 
   tab.addEventListener('click', function(){ setOpen(!isOpen(), true); });
   closeBtn.addEventListener('click', function(){ setOpen(false, true); });
