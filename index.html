@@ -1365,6 +1365,29 @@
     .lb-live, .lb-row.lb-flash, .lb-skel .lb-name, .lb-skel .lb-pts{animation:none;}
   }
   @media print{ .lb-panel, .lb-tab{display:none !important;} }
+  /* ---------- LÍDERES POR ESTADÍSTICA (panel izquierdo) ---------- */
+  .lb-tab.lbl-tab{
+    right:auto; left:0;
+    border:1px solid var(--card-border); border-left:none;
+    border-radius:0 12px 12px 0;
+    transition:left 0.28s cubic-bezier(.2,.7,.2,1), filter 0.15s ease;
+  }
+  body.lbl-open .lb-tab.lbl-tab{left:var(--lb-w); right:auto;}
+  .lb-panel.lbl-panel{
+    right:auto; left:0;
+    border:1px solid var(--card-border); border-left:none;
+    border-radius:0 16px 16px 0;
+    box-shadow:var(--shadow), var(--card-glow), 10px 0 40px rgba(0,0,0,0.25);
+    transform:translateX(-105%);
+  }
+  body.lbl-open .lb-panel.lbl-panel{transform:none; visibility:visible; transition:transform 0.28s cubic-bezier(.2,.7,.2,1), visibility 0s;}
+  .lbl-row{grid-template-columns:30px 1fr auto; padding:8px 10px;}
+  .lbl-ico{width:28px; height:28px; display:flex; align-items:center; justify-content:center; font-size:17px; line-height:1;}
+  .lbl-body{display:flex; flex-direction:column; min-width:0; gap:1px;}
+  .lbl-cat{font-size:10.5px; letter-spacing:0.04em; text-transform:uppercase; color:var(--muted); line-height:1.25; font-weight:600;}
+  .lbl-row .lb-name{font-size:14.5px;}
+  .lbl-row .lb-pts{font-size:15px;}
+  @media (prefers-reduced-motion: reduce){ .lb-tab.lbl-tab{transition:none;} }
 </style>
 </head>
 <body>
@@ -1375,6 +1398,17 @@
   <div id="paletteOptions"></div>
 </div>
 
+<button class="lb-tab lbl-tab" id="lblTab" type="button" aria-controls="lblPanel" aria-expanded="false" title="Ver líderes por estadística">👑 LÍDERES</button>
+<aside class="lb-panel lbl-panel" id="lblPanel" aria-label="Líderes por estadística" aria-hidden="true">
+  <div class="lb-head">
+    <div class="lb-title"><span class="lb-trophy">👑</span>LÍDERES</div>
+    <button class="lb-close" id="lblClose" type="button" aria-label="Cerrar líderes por estadística">✕</button>
+  </div>
+  <div class="lb-sub"><span class="lb-live wait" id="lblLive"></span><span id="lblStatus">Conectando…</span></div>
+  <ol class="lb-list" id="lblList"></ol>
+  <div class="lb-msg" id="lblMsg" hidden></div>
+  <div class="lb-foot"><button class="lb-refresh" id="lblRefresh" type="button">↻ Actualizar</button></div>
+</aside>
 <button class="lb-tab" id="lbTab" type="button" aria-controls="lbPanel" aria-expanded="false" title="Ver clasificación Top 10">🏆 TOP 10</button>
 <aside class="lb-panel" id="lbPanel" aria-label="Clasificación Top 10" aria-hidden="true">
   <div class="lb-head">
@@ -5061,7 +5095,7 @@
   try{ saved = localStorage.getItem(LS_KEY); }catch(e){}
   setOpen(saved === null ? window.innerWidth >= DOCK_MIN : saved === '1', false);
 
-  tab.addEventListener('click', function(e){ e.stopPropagation(); setOpen(!isOpen(), true); });
+  tab.addEventListener('click', function(){ setOpen(!isOpen(), true); });
   closeBtn.addEventListener('click', function(){ setOpen(false, true); });
   document.addEventListener('click', function(e){
     if(isOpen() && window.innerWidth < DOCK_MIN && !panel.contains(e.target) && !tab.contains(e.target)){
@@ -5169,6 +5203,182 @@
       for(var i = 1; i <= 10; i++){   // filas 2..11 de la hoja
         var r = rows[i] || [];
         out.push({ name: (r[2] || '').trim(), pts: (r[4] || '').trim() });   // C = 2, E = 4
+      }
+      render(out);
+      hasData = true;
+      setLive('ok', 'En vivo · ' + clock());
+    }).catch(function(){
+      if(!hasData){
+        listEl.innerHTML = '';
+        showMsg('No pude leer la hoja. Revisá que esté compartida como “Cualquier persona con el enlace · Lector” y que sea una hoja de Google (no un .xlsx).');
+      }
+      setLive('off', hasData ? 'Sin conexión · reintentando…' : 'No se pudo cargar');
+    }).then(function(){
+      busy = false;
+      refreshBtn.classList.remove('spin');
+    });
+  }
+
+  refreshBtn.addEventListener('click', function(){ load(true); });
+  skeleton();
+  load(false);
+  setInterval(function(){ if(!document.hidden) load(false); }, POLL_MS);
+  document.addEventListener('visibilitychange', function(){ if(!document.hidden) load(false); });
+})();
+</script>
+
+<script>
+/* ===== LÍDERES POR ESTADÍSTICA en vivo (hoja "Líderes por Estadística": A = categoría · B = jugador · C = cantidad) ===== */
+(function(){
+  var SHEET_ID = '1ilmB79EUMHpFSAKBS-Q-t8cMwuGzHHHw';
+  var GID      = '1471283425';
+  var POLL_MS  = 10000;
+  var DOCK_MIN = 1520;
+  var LS_KEY   = 'copa_lbl_open';
+
+  var tab = document.getElementById('lblTab');
+  var panel = document.getElementById('lblPanel');
+  var closeBtn = document.getElementById('lblClose');
+  var listEl = document.getElementById('lblList');
+  var liveEl = document.getElementById('lblLive');
+  var statusEl = document.getElementById('lblStatus');
+  var msgEl = document.getElementById('lblMsg');
+  var refreshBtn = document.getElementById('lblRefresh');
+  if(!tab || !panel || !listEl) return;
+
+  function setOpen(open, persist){
+    document.body.classList.toggle('lbl-open', open);
+    tab.setAttribute('aria-expanded', open ? 'true' : 'false');
+    panel.setAttribute('aria-hidden', open ? 'false' : 'true');
+    if(persist){ try{ localStorage.setItem(LS_KEY, open ? '1' : '0'); }catch(e){} }
+  }
+  function isOpen(){ return document.body.classList.contains('lbl-open'); }
+  var saved = null;
+  try{ saved = localStorage.getItem(LS_KEY); }catch(e){}
+  setOpen(saved === null ? window.innerWidth >= DOCK_MIN : saved === '1', false);
+
+  tab.addEventListener('click', function(){ setOpen(!isOpen(), true); });
+  closeBtn.addEventListener('click', function(){ setOpen(false, true); });
+  document.addEventListener('click', function(e){
+    if(isOpen() && window.innerWidth < DOCK_MIN && !panel.contains(e.target) && !tab.contains(e.target)){
+      setOpen(false, false);
+    }
+  });
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape' && isOpen() && window.innerWidth < DOCK_MIN) setOpen(false, false);
+  });
+
+  function parseCSV(text){
+    var rows = [], row = [], cell = '', q = false, i, c;
+    for(i = 0; i < text.length; i++){
+      c = text[i];
+      if(q){
+        if(c === '"'){ if(text[i+1] === '"'){ cell += '"'; i++; } else { q = false; } }
+        else cell += c;
+      } else if(c === '"'){ q = true; }
+      else if(c === ','){ row.push(cell); cell = ''; }
+      else if(c === '\n' || c === '\r'){
+        if(c === '\r' && text[i+1] === '\n') i++;
+        row.push(cell); rows.push(row); row = []; cell = '';
+      } else cell += c;
+    }
+    if(cell !== '' || row.length){ row.push(cell); rows.push(row); }
+    return rows;
+  }
+
+  function urls(){
+    var t = Date.now();
+    var base = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID;
+    return [
+      base + '/gviz/tq?tqx=out:csv&gid=' + GID + '&range=A1:C60&headers=0&_=' + t,
+      base + '/export?format=csv&gid=' + GID + '&range=A1:C60&_=' + t
+    ];
+  }
+  function fetchSheet(){
+    var list = urls(), idx = 0;
+    function next(){
+      if(idx >= list.length) return Promise.reject(new Error('sin-acceso'));
+      return fetch(list[idx++], { cache: 'no-store' }).then(function(r){
+        if(!r.ok) throw new Error('http-' + r.status);
+        return r.text();
+      }).then(function(txt){
+        if(/^\s*<(!doctype|html)/i.test(txt)) throw new Error('html');
+        return txt;
+      }).catch(next);
+    }
+    return next();
+  }
+
+  function icon(cat){
+    var c = cat.toLowerCase();
+    if(/promedio/.test(c)) return '📊';
+    if(/goles\s*\+\s*asist/.test(c)) return '⚡';
+    if(/autogol/.test(c)) return '🙈';
+    if(/gol/.test(c)) return '⚽';
+    if(/asist/.test(c)) return '🎯';
+    if(/mvp.*torneo/.test(c)) return '🏆';
+    if(/mvp/.test(c)) return '⭐';
+    if(/t[ií]tulo/.test(c)) return '🏅';
+    if(/amarilla/.test(c)) return '🟨';
+    if(/roja/.test(c)) return '🟥';
+    if(/abandon/.test(c)) return '🚪';
+    if(/ganad/.test(c)) return '✅';
+    if(/empatad/.test(c)) return '🤝';
+    if(/perdid/.test(c)) return '❌';
+    if(/jugad/.test(c)) return '🎮';
+    return '📌';
+  }
+
+  var prev = null;
+  function skeleton(){
+    var h = '';
+    for(var i = 0; i < 8; i++){
+      h += '<li class="lb-row lbl-row lb-skel"><span class="lbl-ico"></span><span class="lbl-body"><span class="lb-name">.</span></span><span class="lb-pts">.</span></li>';
+    }
+    listEl.innerHTML = h;
+  }
+  function showMsg(t){ msgEl.textContent = t; msgEl.hidden = !t; }
+  function setLive(state, text){
+    liveEl.className = 'lb-live' + (state === 'ok' ? '' : ' ' + state);
+    statusEl.textContent = text;
+  }
+  function clock(){
+    return new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
+
+  function render(data){
+    var frag = document.createDocumentFragment();
+    data.forEach(function(d, i){
+      var li = document.createElement('li');
+      var key = d.cat + '|' + d.name + '|' + d.val;
+      li.className = 'lb-row lbl-row' + (prev && prev[i] !== undefined && prev[i] !== key ? ' lb-flash' : '');
+      var ico = document.createElement('span'); ico.className = 'lbl-ico'; ico.textContent = icon(d.cat);
+      var body = document.createElement('span'); body.className = 'lbl-body';
+      var cat = document.createElement('span'); cat.className = 'lbl-cat'; cat.textContent = d.cat;
+      var nm = document.createElement('span'); nm.className = 'lb-name'; nm.textContent = d.name || '—'; nm.title = d.name || '';
+      body.appendChild(cat); body.appendChild(nm);
+      var val = document.createElement('span'); val.className = 'lb-pts'; val.textContent = d.val;
+      li.appendChild(ico); li.appendChild(body); li.appendChild(val);
+      frag.appendChild(li);
+    });
+    listEl.innerHTML = '';
+    listEl.appendChild(frag);
+    prev = data.map(function(d){ return d.cat + '|' + d.name + '|' + d.val; });
+    showMsg(data.length ? '' : 'La hoja todavía no tiene estadísticas cargadas.');
+  }
+
+  var busy = false, hasData = false;
+  function load(manual){
+    if(busy) return;
+    busy = true;
+    if(manual) refreshBtn.classList.add('spin');
+    fetchSheet().then(function(txt){
+      var rows = parseCSV(txt), out = [];
+      for(var i = 1; i < rows.length; i++){          // fila 1 = encabezados
+        var r = rows[i] || [];
+        var cat = (r[0] || '').trim();
+        if(!cat) continue;
+        out.push({ cat: cat, name: (r[1] || '').trim(), val: (r[2] || '').trim() });
       }
       render(out);
       hasData = true;
