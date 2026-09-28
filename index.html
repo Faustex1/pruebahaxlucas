@@ -1267,7 +1267,7 @@
   }
   .lb-tab:hover{filter:brightness(1.15);}
   .lb-tab:focus-visible, .lb-close:focus-visible, .lb-refresh:focus-visible{outline:2px solid var(--gold); outline-offset:2px;}
-  body.lb-open .lb-tab{right:var(--lb-w);}
+  body.lb-open .lb-tab:not(.lbl-tab){right:var(--lb-w);}
 
   .lb-panel{
     position:fixed; right:0;
@@ -1286,7 +1286,7 @@
     visibility:hidden;
     transition:transform 0.28s cubic-bezier(.2,.7,.2,1), visibility 0s linear 0.28s;
   }
-  body.lb-open .lb-panel{transform:none; visibility:visible; transition:transform 0.28s cubic-bezier(.2,.7,.2,1), visibility 0s;}
+  body.lb-open .lb-panel:not(.lbl-panel){transform:none; visibility:visible; transition:transform 0.28s cubic-bezier(.2,.7,.2,1), visibility 0s;}
   .lb-panel::before{
     content:""; position:absolute; left:0; right:0; top:0; height:3px;
     background:linear-gradient(90deg, var(--gold), var(--gold-bright));
@@ -5088,12 +5088,12 @@
     document.body.classList.toggle('lb-open', open);
     tab.setAttribute('aria-expanded', open ? 'true' : 'false');
     panel.setAttribute('aria-hidden', open ? 'false' : 'true');
-    if(persist){ try{ localStorage.setItem(LS_KEY, open ? '1' : '0'); }catch(e){} }
+    /* el estado ya no se guarda: siempre arranca cerrado */
   }
   function isOpen(){ return document.body.classList.contains('lb-open'); }
-  var saved = null;
-  try{ saved = localStorage.getItem(LS_KEY); }catch(e){}
-  setOpen(saved === null ? window.innerWidth >= DOCK_MIN : saved === '1', false);
+  // Siempre arranca cerrado al entrar a la página (y borra lo que se guardaba antes)
+  try{ localStorage.removeItem(LS_KEY); }catch(e){}
+  setOpen(false, false);
 
   tab.addEventListener('click', function(){ setOpen(!isOpen(), true); });
   closeBtn.addEventListener('click', function(){ setOpen(false, true); });
@@ -5250,12 +5250,12 @@
     document.body.classList.toggle('lbl-open', open);
     tab.setAttribute('aria-expanded', open ? 'true' : 'false');
     panel.setAttribute('aria-hidden', open ? 'false' : 'true');
-    if(persist){ try{ localStorage.setItem(LS_KEY, open ? '1' : '0'); }catch(e){} }
+    /* el estado ya no se guarda: siempre arranca cerrado */
   }
   function isOpen(){ return document.body.classList.contains('lbl-open'); }
-  var saved = null;
-  try{ saved = localStorage.getItem(LS_KEY); }catch(e){}
-  setOpen(saved === null ? window.innerWidth >= DOCK_MIN : saved === '1', false);
+  // Siempre arranca cerrado al entrar a la página (y borra lo que se guardaba antes)
+  try{ localStorage.removeItem(LS_KEY); }catch(e){}
+  setOpen(false, false);
 
   tab.addEventListener('click', function(){ setOpen(!isOpen(), true); });
   closeBtn.addEventListener('click', function(){ setOpen(false, true); });
