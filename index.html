@@ -1490,6 +1490,21 @@
   @keyframes lbtFade{from{opacity:0}to{opacity:1}}
   @keyframes lbtPop{from{opacity:0; transform:translateY(10px) scale(.97)}to{opacity:1; transform:none}}
   @media (prefers-reduced-motion: reduce){ .lbt-back,.lbt-card{animation:none;} .lbl-row.lbl-click{transition:none;} }
+
+  /* ---------- Estadísticas de un jugador (click en el TOP 10) ---------- */
+  .lb-row.lb-click{cursor:var(--cursor-pointer, pointer); transition:border-color .15s, transform .15s;}
+  .lb-row.lb-click:hover{border-color:rgba(var(--gold-rgb),0.6); transform:translateX(-2px);}
+  .lb-row.lb-click:focus-visible{outline:2px solid var(--gold); outline-offset:1px;}
+  .lbp-card{max-width:360px;}
+  .lbp-rank{margin:-2px 16px 12px 52px; font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.03em; color:var(--muted);}
+  .lbp-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; padding:0 14px 16px;}
+  .lbp-tile{display:flex; flex-direction:column; align-items:center; gap:2px; padding:14px 6px 12px; text-align:center;
+    background:var(--paper-2); border:1px solid var(--card-border); border-radius:12px;}
+  .lbp-ic{font-size:20px; line-height:1;}
+  .lbp-val{font-family:'Bebas Neue',sans-serif; font-size:38px; line-height:1.05; color:var(--gold-bright); letter-spacing:0.02em;}
+  .lbp-lab{font-size:11px; line-height:1.2; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:0.04em;}
+  .lbp-msg{margin:0 14px 14px;}
+  @media (prefers-reduced-motion: reduce){ .lb-row.lb-click{transition:none;} }
 </style>
 </head>
 <body>
@@ -5311,6 +5326,104 @@
     return next();
   }
 
+  /* ---------- ESTADÍSTICAS POR JUGADOR (hoja de jugadores: se busca por nombre) ---------- */
+  var STATS_GID = '202140857';
+  var stats = {};          // nombre normalizado -> { name, played, goals, assists }
+  function norm(s){
+    s = (s || '').toString().trim().toLowerCase();
+    try{ s = s.normalize('NFD').replace(/[̀-ͯ]/g, ''); }catch(e){}
+    return s.replace(/\s+/g, ' ');
+  }
+  function statsUrls(){
+    var t = Date.now(), base = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID;
+    return [
+      base + '/gviz/tq?tqx=out:csv&gid=' + STATS_GID + '&range=A1:S200&headers=0&_=' + t,
+      base + '/export?format=csv&gid=' + STATS_GID + '&range=A1:S200&_=' + t
+    ];
+  }
+  function fetchStats(){
+    var list = statsUrls(), idx = 0;
+    function next(){
+      if(idx >= list.length) return Promise.reject(new Error('sin-acceso'));
+      return fetch(list[idx++], { cache: 'no-store' }).then(function(r){
+        if(!r.ok) throw new Error('http-' + r.status);
+        return r.text();
+      }).then(function(txt){
+        if(/^\s*<(!doctype|html)/i.test(txt)) throw new Error('html');
+        return txt;
+      }).catch(next);
+    }
+    return next();
+  }
+  /* Las columnas se buscan por el texto del encabezado (Jugador / Partidos Jugados / Goles / Asistencias), no por posición fija */
+  function parseStats(txt){
+    var rows = parseCSV(txt), h = -1, cJ = -1, cP = -1, cG = -1, cA = -1, i, k, r;
+    for(i = 0; i < Math.min(rows.length, 10) && h < 0; i++){
+      var cells = (rows[i] || []).map(norm);
+      var j = cells.indexOf('jugador');
+      if(j >= 0){ h = i; cJ = j; cP = cells.indexOf('partidos jugados'); cG = cells.indexOf('goles'); cA = cells.indexOf('asistencias'); }
+    }
+    var res = {};
+    if(h < 0 || cP < 0 || cG < 0 || cA < 0) return res;
+    for(k = h + 1; k < rows.length; k++){
+      r = rows[k] || [];
+      var name = (r[cJ] || '').trim();
+      if(!name) continue;
+      res[norm(name)] = { name: name, played: (r[cP] || '').trim(), goals: (r[cG] || '').trim(), assists: (r[cA] || '').trim() };
+    }
+    return res;
+  }
+
+  var pBack = document.createElement('div');
+  pBack.className = 'lbt-back'; pBack.hidden = true;
+  pBack.innerHTML =
+    '<div class="lbt-card lbp-card" role="dialog" aria-modal="true" aria-labelledby="lbpName">' +
+      '<div class="lbt-head">' +
+        '<span class="lbt-ico" aria-hidden="true">👤</span>' +
+        '<div class="lbt-ttl"><div class="lbt-kicker">ESTADÍSTICAS</div><div class="lbt-title" id="lbpName"></div></div>' +
+        '<button type="button" class="lb-close lbp-x" aria-label="Cerrar">✕</button>' +
+      '</div>' +
+      '<div class="lbp-rank"></div>' +
+      '<div class="lbp-grid">' +
+        '<div class="lbp-tile"><span class="lbp-ic">⚽</span><span class="lbp-val" data-k="goals">–</span><span class="lbp-lab">Goles</span></div>' +
+        '<div class="lbp-tile"><span class="lbp-ic">🎯</span><span class="lbp-val" data-k="assists">–</span><span class="lbp-lab">Asistencias</span></div>' +
+        '<div class="lbp-tile"><span class="lbp-ic">🎮</span><span class="lbp-val" data-k="played">–</span><span class="lbp-lab">Partidos jugados</span></div>' +
+      '</div>' +
+      '<div class="lb-msg lbp-msg" hidden></div>' +
+    '</div>';
+  document.body.appendChild(pBack);
+  var pName = pBack.querySelector('#lbpName'), pRank = pBack.querySelector('.lbp-rank'), pMsg = pBack.querySelector('.lbp-msg');
+  var curPlayer = null;
+  function fillPlayer(){
+    if(!curPlayer) return;
+    var st = stats[norm(curPlayer.name)];
+    pName.textContent = curPlayer.name;
+    pRank.textContent = '#' + curPlayer.pos + (curPlayer.pts ? ' · ' + curPlayer.pts + ' pts' : '');
+    ['goals', 'assists', 'played'].forEach(function(k){
+      pBack.querySelector('[data-k="' + k + '"]').textContent = st && st[k] !== '' ? st[k] : '–';
+    });
+    pMsg.textContent = st ? '' : (Object.keys(stats).length ? 'No encontré a este jugador en la hoja de estadísticas.' : 'Cargando estadísticas…');
+    pMsg.hidden = !!st;
+  }
+  function openPlayer(name, pos, pts){
+    curPlayer = { name: name, pos: pos, pts: pts }; fillPlayer(); pBack.hidden = false;
+    var x = pBack.querySelector('.lbp-x'); if(x) x.focus();
+  }
+  function closePlayer(){ pBack.hidden = true; curPlayer = null; }
+  pBack.addEventListener('click', function(e){
+    e.stopPropagation();
+    if(e.target === pBack || e.target.closest('.lbp-x')) closePlayer();
+  });
+  window.addEventListener('keydown', function(e){
+    if(!pBack.hidden && e.key === 'Escape'){ e.stopPropagation(); closePlayer(); }
+  }, true);
+  function loadStats(){
+    fetchStats().then(function(txt){
+      var res = parseStats(txt);
+      if(Object.keys(res).length){ stats = res; if(curPlayer) fillPlayer(); }
+    }).catch(function(){ /* si falla, el top 10 sigue andando; se reintenta en la próxima actualización */ });
+  }
+
   /* ---------- render ---------- */
   var prev = null;   // último estado para animar los cambios
 
@@ -5336,6 +5449,12 @@
       var pt = document.createElement('span'); pt.className = 'lb-pts';
       if(d.pts){ pt.appendChild(document.createTextNode(d.pts)); var sm = document.createElement('small'); sm.textContent = 'pts'; pt.appendChild(sm); }
       li.appendChild(pos); li.appendChild(nm); li.appendChild(pt);
+      if(d.name){
+        li.classList.add('lb-click'); li.tabIndex = 0; li.setAttribute('role', 'button');
+        li.title = 'Ver estadísticas de ' + d.name;
+        li.addEventListener('click', function(){ openPlayer(d.name, i + 1, d.pts); });
+        li.addEventListener('keydown', function(e){ if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); openPlayer(d.name, i + 1, d.pts); } });
+      }
       frag.appendChild(li);
     });
     listEl.innerHTML = '';
@@ -5358,6 +5477,7 @@
     if(busy) return;
     busy = true;
     if(manual) refreshBtn.classList.add('spin');
+    loadStats();
     fetchSheet().then(function(txt){
       var rows = parseCSV(txt);
       var out = [];
