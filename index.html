@@ -5329,17 +5329,41 @@
   /* ---------- ESTADÍSTICAS POR JUGADOR (hoja de jugadores: se busca por nombre) ---------- */
   var STATS_GID = '202140857';
   var stats = {};          // nombre normalizado -> { name, played, goals, assists }
+  var statsState = 'loading';   // loading | ok | fail
   function norm(s){
     s = (s || '').toString().trim().toLowerCase();
     try{ s = s.normalize('NFD').replace(/[̀-ͯ]/g, ''); }catch(e){}
     return s.replace(/\s+/g, ' ');
   }
+  /* Se prueban varias formas de pedir la hoja: con headers=1 Google siempre devuelve los títulos de las columnas
+     (con headers=0 puede dejar vacíos los títulos de las columnas numéricas). */
   function statsUrls(){
     var t = Date.now(), base = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID;
     return [
-      base + '/gviz/tq?tqx=out:csv&gid=' + STATS_GID + '&range=A1:S200&headers=0&_=' + t,
-      base + '/export?format=csv&gid=' + STATS_GID + '&range=A1:S200&_=' + t
+      base + '/gviz/tq?tqx=out:csv&gid=' + STATS_GID + '&headers=1&_=' + t,
+      base + '/export?format=csv&gid=' + STATS_GID + '&_=' + t,
+      base + '/gviz/tq?tqx=out:csv&gid=' + STATS_GID + '&headers=0&_=' + t
     ];
+  }
+  /* Columnas por el texto del encabezado; si no se pueden identificar, se usa la disposición conocida de la hoja:
+     C = Jugador · E = Partidos Jugados · I = Goles · K = Asistencias */
+  function parseStats(txt){
+    var rows = parseCSV(txt), h = -1, cJ = 2, cP = 4, cG = 8, cA = 10, i, k, r, found = false;
+    for(i = 0; i < Math.min(rows.length, 10) && !found; i++){
+      var cells = (rows[i] || []).map(norm);
+      var j = cells.indexOf('jugador'), p = cells.indexOf('partidos jugados'), g = cells.indexOf('goles'), a = cells.indexOf('asistencias');
+      if(j >= 0 && p >= 0 && g >= 0 && a >= 0){ h = i; cJ = j; cP = p; cG = g; cA = a; found = true; }
+    }
+    var res = {};
+    for(k = found ? h + 1 : 0; k < rows.length; k++){
+      r = rows[k] || [];
+      var name = (r[cJ] || '').trim();
+      if(!name || norm(name) === 'jugador') continue;
+      var pl = (r[cP] || '').trim(), go = (r[cG] || '').trim(), as = (r[cA] || '').trim();
+      if(!found && (isNaN(parseFloat(pl)) || isNaN(parseFloat(go)) || isNaN(parseFloat(as)))) continue;   // sin encabezados: solo filas con números
+      res[norm(name)] = { name: name, played: pl, goals: go, assists: as };
+    }
+    return res;
   }
   function fetchStats(){
     var list = statsUrls(), idx = 0;
@@ -5350,28 +5374,12 @@
         return r.text();
       }).then(function(txt){
         if(/^\s*<(!doctype|html)/i.test(txt)) throw new Error('html');
-        return txt;
+        var res = parseStats(txt);
+        if(!Object.keys(res).length) throw new Error('sin-datos');
+        return res;
       }).catch(next);
     }
     return next();
-  }
-  /* Las columnas se buscan por el texto del encabezado (Jugador / Partidos Jugados / Goles / Asistencias), no por posición fija */
-  function parseStats(txt){
-    var rows = parseCSV(txt), h = -1, cJ = -1, cP = -1, cG = -1, cA = -1, i, k, r;
-    for(i = 0; i < Math.min(rows.length, 10) && h < 0; i++){
-      var cells = (rows[i] || []).map(norm);
-      var j = cells.indexOf('jugador');
-      if(j >= 0){ h = i; cJ = j; cP = cells.indexOf('partidos jugados'); cG = cells.indexOf('goles'); cA = cells.indexOf('asistencias'); }
-    }
-    var res = {};
-    if(h < 0 || cP < 0 || cG < 0 || cA < 0) return res;
-    for(k = h + 1; k < rows.length; k++){
-      r = rows[k] || [];
-      var name = (r[cJ] || '').trim();
-      if(!name) continue;
-      res[norm(name)] = { name: name, played: (r[cP] || '').trim(), goals: (r[cG] || '').trim(), assists: (r[cA] || '').trim() };
-    }
-    return res;
   }
 
   var pBack = document.createElement('div');
@@ -5402,7 +5410,7 @@
     ['goals', 'assists', 'played'].forEach(function(k){
       pBack.querySelector('[data-k="' + k + '"]').textContent = st && st[k] !== '' ? st[k] : '–';
     });
-    pMsg.textContent = st ? '' : (Object.keys(stats).length ? 'No encontré a este jugador en la hoja de estadísticas.' : 'Cargando estadísticas…');
+    pMsg.textContent = st ? '' : (statsState === 'ok' ? 'No encontré a este jugador en la hoja de estadísticas.' : (statsState === 'fail' ? 'No pude leer la hoja de estadísticas. Revisá que esté compartida como “Cualquier persona con el enlace · Lector”.' : 'Cargando estadísticas…'));
     pMsg.hidden = !!st;
   }
   function openPlayer(name, pos, pts){
@@ -5418,10 +5426,13 @@
     if(!pBack.hidden && e.key === 'Escape'){ e.stopPropagation(); closePlayer(); }
   }, true);
   function loadStats(){
-    fetchStats().then(function(txt){
-      var res = parseStats(txt);
-      if(Object.keys(res).length){ stats = res; if(curPlayer) fillPlayer(); }
-    }).catch(function(){ /* si falla, el top 10 sigue andando; se reintenta en la próxima actualización */ });
+    fetchStats().then(function(res){
+      stats = res; statsState = 'ok'; if(curPlayer) fillPlayer();
+    }).catch(function(){
+      /* si falla, el top 10 sigue andando; se reintenta en la próxima actualización */
+      if(statsState !== 'ok') statsState = 'fail';
+      if(curPlayer) fillPlayer();
+    });
   }
 
   /* ---------- render ---------- */
