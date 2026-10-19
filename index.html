@@ -1505,6 +1505,25 @@
   .lbp-lab{font-size:11px; line-height:1.2; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:0.04em;}
   .lbp-msg{margin:0 14px 14px;}
   @media (prefers-reduced-motion: reduce){ .lb-row.lb-click{transition:none;} }
+
+  /* ---------- CARTEL DE NOVEDADES ---------- */
+  .nov-back{z-index:160;}
+  .nov-card{max-width:430px;}
+  .nov-head{display:flex; align-items:center; gap:12px; padding:18px 18px 6px;}
+  .nov-ic{font-size:30px; line-height:1;}
+  .nov-kicker{font-family:'Bebas Neue',sans-serif; font-size:15px; letter-spacing:0.14em; color:var(--gold-bright); line-height:1;}
+  .nov-title{font-family:'Bebas Neue',sans-serif; font-size:30px; line-height:1.05; letter-spacing:0.02em; margin-top:2px;}
+  .nov-list{list-style:none; margin:0; padding:8px 18px 4px; overflow-y:auto; display:flex; flex-direction:column; gap:10px;}
+  .nov-item{display:grid; grid-template-columns:34px 1fr; gap:12px; align-items:start; padding:11px 12px;
+    background:var(--paper-2); border:1px solid var(--card-border); border-radius:12px;}
+  .nov-item .e{font-size:22px; line-height:1.2; text-align:center;}
+  .nov-item b{display:block; font-size:14.5px; line-height:1.3; margin-bottom:2px;}
+  .nov-item span{display:block; font-size:13px; line-height:1.45; color:var(--muted);}
+  .nov-foot{padding:12px 18px 18px; display:flex; justify-content:flex-end;}
+  .nov-btn{padding:10px 20px; border-radius:999px; border:1px solid rgba(var(--gold-rgb),0.6); cursor:var(--cursor-pointer, pointer);
+    background:linear-gradient(135deg, var(--gold), var(--gold-dim)); color:var(--pitch-dark); font-weight:700; font-size:14px;
+    font-family:'IBM Plex Sans',sans-serif; box-shadow:0 6px 18px rgba(var(--gold-rgb),0.25);}
+  .nov-btn:hover{filter:brightness(1.08);}
 </style>
 </head>
 <body>
@@ -5923,6 +5942,48 @@ void main(){
     const lbl=document.querySelector('label[for="'+id+'"]');
     if(lbl) lbl.addEventListener('click',()=>{ if(!ta.readOnly) box.focus(); });
   });
+})();
+</script><script>
+/* Cartel de novedades: aparece una sola vez por versión para cada persona (se recuerda en su navegador).
+   Para mostrar uno nuevo en una próxima actualización: cambiar NOV_VERSION y la lista de abajo. */
+(function(){
+  var NOV_VERSION = '2026-10-19';
+  var LS_KEY = 'copa_novedades_visto';
+  var ITEMS = [
+    { e:'✨', t:'Fondo animado nuevo', d:'Hilos de luz fluidos que se mueven por toda la pantalla y toman los colores de la paleta que elijas con el 🎨.' },
+    { e:'📋', t:'Lista del sorteo en columnas', d:'Al cargar los nombres, cuando se llena una columna siguen en la de al lado, con líneas divisorias discretas. Así aprovechás todo el espacio.' },
+    { e:'👑', t:'Top 10 de cada estadística', d:'En LÍDERES, tocá cualquier estadística para ver el top 10 completo. Con las flechas ‹ › pasás de una a otra.' },
+    { e:'🏆', t:'Estadísticas de cada jugador', d:'En el TOP 10, tocá a un jugador para ver sus goles, asistencias y partidos jugados.' }
+  ];
+  try{ if(localStorage.getItem(LS_KEY) === NOV_VERSION) return; }catch(e){}
+
+  var back = document.createElement('div');
+  back.className = 'lbt-back nov-back'; back.hidden = true;
+  var html = '<div class="lbt-card nov-card" role="dialog" aria-modal="true" aria-labelledby="novTitle">' +
+    '<div class="nov-head"><span class="nov-ic" aria-hidden="true">🎉</span><div><div class="nov-kicker">ACTUALIZACIÓN</div><div class="nov-title" id="novTitle">¡Novedades!</div></div></div>' +
+    '<ul class="nov-list">';
+  ITEMS.forEach(function(it){
+    html += '<li class="nov-item"><span class="e" aria-hidden="true">' + it.e + '</span><div><b>' + it.t + '</b><span>' + it.d + '</span></div></li>';
+  });
+  html += '</ul><div class="nov-foot"><button type="button" class="nov-btn">¡Entendido!</button></div></div>';
+  back.innerHTML = html;
+
+  function close(){
+    back.hidden = true;
+    try{ localStorage.setItem(LS_KEY, NOV_VERSION); }catch(e){}
+    window.removeEventListener('keydown', onKey, true);
+  }
+  function onKey(e){ if(e.key === 'Escape'){ e.stopPropagation(); close(); } }
+  back.addEventListener('click', function(e){
+    e.stopPropagation();
+    if(e.target === back || e.target.closest('.nov-btn')) close();
+  });
+  function show(){
+    document.body.appendChild(back); back.hidden = false;
+    window.addEventListener('keydown', onKey, true);
+    var b = back.querySelector('.nov-btn'); if(b) b.focus();
+  }
+  setTimeout(show, 900);
 })();
 </script></body>
 </html>
