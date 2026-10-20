@@ -6312,7 +6312,7 @@ void main(){
 (function(){
   var LISTS=[{id:'fixturesList',section:'liga'},{id:'posFixturesList',section:'pos'}];
   var NTFY='https://ntfy.sh/copa-lucaspazo27-live-k7q4x9m2vh8d';
-  var extOk=false, live=null, es=null, liveAt=0, cand=null, candT=null, sawPlaying=false, lastMsgAt=0, lastSt='', lastR=null, lastB=null; // live={section,key,redIsA}
+  var extOk=false, live=null, es=null, liveAt=0, cand=null, candT=null, sawPlaying=false, playAt=0, lastMsgAt=0, lastSt='', lastR=null, lastB=null; // live={section,key,redIsA}
   function post(type){ window.postMessage({copaPage:true,type:type},'*'); }
   function toast(m){ var t=document.getElementById('toast'); if(!t) return; t.textContent=m; t.classList.add('show'); clearTimeout(toast.t); toast.t=setTimeout(function(){t.classList.remove('show');},3500); }
   window.addEventListener('message',function(e){
@@ -6343,7 +6343,7 @@ void main(){
   }
   function gotMsg(d){
     lastMsgAt=Date.now(); lastSt=d.status;
-    if(d.status==='playing'){ sawPlaying=true; lastR=d.red; lastB=d.blue; applyScore(d.red,d.blue); }
+    if(d.status==='playing'){ if(!sawPlaying) playAt=Date.now(); sawPlaying=true; lastR=d.red; lastB=d.blue; applyScore(d.red,d.blue); }
     else if(d.status==='ended'){ if(d.red!=null){ lastR=d.red; lastB=d.blue; } finish(); }
     else if(d.status==='room'&&sawPlaying){ finish(); }   // volvió a la sala sin partida: terminó
   }
@@ -6363,11 +6363,11 @@ void main(){
   function closeRemote(){ if(es){ try{ es.close(); }catch(e){} es=null; } clearTimeout(candT); cand=null; }
   function start(section,key){
     if(live) stop();
-    live={section:section,key:key,redIsA:true}; liveAt=Date.now(); sawPlaying=false; lastMsgAt=0; lastSt=''; lastR=lastB=null; openRemote(); post('start'); toast('📡 Esperando el marcador de HaxBall…'); paint();
+    live={section:section,key:key,redIsA:true}; liveAt=Date.now(); sawPlaying=false; playAt=0; lastMsgAt=0; lastSt=''; lastR=lastB=null; openRemote(); post('start'); toast('📡 Esperando el marcador de HaxBall…'); paint();
   }
   function stop(){ post('stop'); closeRemote(); live=null; paint(); }
   var lastSig='';
-  setInterval(function(){ if(live&&sawPlaying&&Date.now()-lastMsgAt>90000) finish(); },5000);   // sin señal 90 s: se da por terminado
+  setInterval(function(){ var n=Date.now(); if(live&&sawPlaying&&n-playAt>=60000&&n-lastMsgAt>15000) finish(); },1000);   // pasó 1 minuto de partido y se corta la señal: terminó, se pasa al siguiente enseguida
   async function copyExtLink(){
     var A=window.__copaLive; if(!A) return;
     var l=A.link();
