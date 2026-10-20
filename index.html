@@ -6316,7 +6316,7 @@ void main(){
   function toast(m){ var t=document.getElementById('toast'); if(!t) return; t.textContent=m; t.classList.add('show'); clearTimeout(toast.t); toast.t=setTimeout(function(){t.classList.remove('show');},3500); }
   window.addEventListener('message',function(e){
     var d=e.data; if(e.source!==window||!d||d.copaExt!==true) return;
-    if(d.type==='pong'){ extOk=true; paint(); }
+    if(d.type==='pong'){ var was=extOk; extOk=true; if(!was) paint(); }
     else if(d.type==='cmd-start'){ if(d.section&&d.key) start(d.section,d.key); }
     else if(d.type==='cmd-stop'){ if(live) stop(); }
     else if(d.type==='score'&&live) applyScore(d.red,d.blue);
@@ -6365,17 +6365,18 @@ void main(){
         var inp=m.querySelector('.score-box'); if(!inp) return;
         var key=inp.dataset.key, ui=m.querySelector('.live-ui');
         var editable=!inp.readOnly, host=!!(window.__copaLive&&!window.__copaLive.isGuest);
-        var showLive=extOk&&editable;
+        var showLive=editable;
         if(!showLive&&!host){ if(ui) ui.remove(); return; }
         var on=!!(live&&live.section===L.section&&live.key===key);
-        var sig=(showLive?'v':'-')+(on?'on':'off')+(host?'h':'-');
+        var sig=(showLive?'v':'-')+(on?'on':'off')+(host?'h':'-')+(extOk?'e':'x');
         if(ui&&ui.dataset.sig===sig) return;
         if(ui) ui.remove();
         ui=document.createElement('div'); ui.className='live-ui'; ui.dataset.sig=sig;
         if(showLive){
           var b=document.createElement('button'); b.type='button'; b.className='live-btn'+(on?' on':'');
           b.textContent=on?'⏹ En vivo':'📡 En vivo'; b.title=on?'Dejar de seguir':'Seguir este partido desde HaxBall';
-          b.onclick=function(){ on?stop():start(L.section,key); };
+          if(!extOk) b.classList.add('done');
+          b.onclick=function(){ if(!extOk){ toast('Para usar "En vivo" instalá la extensión Copa HaxBall Live y abrí la página desde https://pruebahaxlucas.vercel.app/ (si ya la instalaste, recargá con F5).'); return; } on?stop():start(L.section,key); };
           ui.appendChild(b);
         }
         if(host){
