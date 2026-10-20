@@ -6380,12 +6380,16 @@ void main(){
     pushList();
     LISTS.forEach(function(L){
       var c=document.getElementById(L.id); if(!c) return;
-      c.querySelectorAll('.match').forEach(function(m){
+      var nextKey=null;   // el próximo partido sin resultado, en orden
+      var all=c.querySelectorAll('.match');
+      for(var q=0;q<all.length;q++){ var bx=all[q].querySelectorAll('.score-box'); if(bx.length<2) continue; if(bx[0].value===''||bx[1].value===''){ nextKey=bx[0].dataset.key; break; } }
+      if(live&&live.section===L.section) nextKey=live.key;   // mientras se sigue uno, solo ese
+      all.forEach(function(m){
         var inp=m.querySelector('.score-box'); if(!inp) return;
         var key=inp.dataset.key, ui=m.querySelector('.live-ui');
         var editable=!inp.readOnly, host=!!(window.__copaLive&&!window.__copaLive.isGuest);
-        var showLive=editable;
-        if(!showLive&&!host){ if(ui) ui.remove(); return; }
+        var showLive=editable&&key===nextKey;
+        if(!showLive){ if(ui) ui.remove(); return; }
         var on=!!(live&&live.section===L.section&&live.key===key);
         var sig=(showLive?'v':'-')+(on?'on':'off')+(host?'h':'-')+(extOk?'e':'x');
         if(ui&&ui.dataset.sig===sig) return;
@@ -6407,7 +6411,7 @@ void main(){
   }
   LISTS.forEach(function(L){ var c=document.getElementById(L.id); if(c) new MutationObserver(function(){ paint(); }).observe(c,{childList:true,subtree:true}); });
   post('ping'); [400,1200,2500].forEach(function(t){ setTimeout(function(){ if(!extOk) post('ping'); },t); }); setInterval(function(){ post('ping'); },4000); setInterval(pushList,1500);
-  setTimeout(paint,500);
+  setTimeout(paint,500); setInterval(paint,1000);
 })();
 </script>
 </body>
