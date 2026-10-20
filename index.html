@@ -6311,7 +6311,8 @@ void main(){
 <script>
 (function(){
   var LISTS=[{id:'fixturesList',section:'liga'},{id:'posFixturesList',section:'pos'}];
-  var extOk=false, live=null; // live={section,key,redIsA}
+  var NTFY='https://ntfy.sh/copa-lucaspazo27-live-k7q4x9m2vh8d';
+  var extOk=false, live=null, es=null, liveAt=0, cand=null, candT=null; // live={section,key,redIsA}
   function post(type){ window.postMessage({copaPage:true,type:type},'*'); }
   function toast(m){ var t=document.getElementById('toast'); if(!t) return; t.textContent=m; t.classList.add('show'); clearTimeout(toast.t); toast.t=setTimeout(function(){t.classList.remove('show');},3500); }
   window.addEventListener('message',function(e){
@@ -6320,7 +6321,7 @@ void main(){
     else if(d.type==='cmd-start'){ if(d.section&&d.key) start(d.section,d.key); }
     else if(d.type==='cmd-stop'){ if(live) stop(); }
     else if(d.type==='score'&&live) applyScore(d.red,d.blue);
-    else if(d.type==='ended'&&live){ applyScore(d.red,d.blue); toast('🏁 Partido terminado, resultado guardado'); stop(false); }
+    else if(d.type==='ended'&&live){ applyScore(d.red,d.blue); toast('🏁 Partido terminado, resultado guardado'); stop(); }
   });
   function box(section,key,side){ var L=LISTS.filter(function(l){return l.section===section;})[0]; var c=document.getElementById(L.id); return c&&c.querySelector('.score-box[data-key="'+key+'"][data-side="'+side+'"]'); }
   function applyScore(red,blue){
@@ -6328,11 +6329,29 @@ void main(){
     var a=live.redIsA?red:blue, b=live.redIsA?blue:red;
     [['a',a],['b',b]].forEach(function(p){ var bx=box(live.section,live.key,p[0]); if(bx&&bx.value!==String(p[1])){ bx.value=p[1]; bx.dispatchEvent(new Event('input',{bubbles:true})); } });
   }
-  function start(section,key){
-    if(live) stop(false);
-    live={section:section,key:key,redIsA:true}; post('start'); toast('📡 Siguiendo el partido en HaxBall'); paint();
+  function onRemote(ev){
+    var m; try{ m=JSON.parse(ev.data); }catch(e){ return; }
+    var d; try{ d=JSON.parse(m.message); }catch(e){ return; }
+    if(!d||d.copa!==1||!live) return;
+    var tm=(m.time||0)*1000;
+    if(tm<liveAt-2000){                      // mensaje anterior a que apretaras "En vivo": solo vale si la partida sigue en juego
+      if(d.status==='playing') cand=d; else cand=null;
+      clearTimeout(candT); candT=setTimeout(function(){ if(cand&&live) applyScore(cand.red,cand.blue); cand=null; },1200);
+      return;
+    }
+    if(d.status==='playing') applyScore(d.red,d.blue);
+    else if(d.status==='ended'){ applyScore(d.red,d.blue); toast('🏁 Partido terminado, resultado guardado'); stop(); }
   }
-  function stop(send){ if(send!==false) post('stop'); live=null; paint(); }
+  function openRemote(){
+    closeRemote();
+    try{ es=new EventSource(NTFY+'/sse?since=90s'); es.onmessage=onRemote; }catch(e){ es=null; }
+  }
+  function closeRemote(){ if(es){ try{ es.close(); }catch(e){} es=null; } clearTimeout(candT); cand=null; }
+  function start(section,key){
+    if(live) stop();
+    live={section:section,key:key,redIsA:true}; liveAt=Date.now(); openRemote(); post('start'); toast('📡 Esperando el marcador de HaxBall…'); paint();
+  }
+  function stop(){ post('stop'); closeRemote(); live=null; paint(); }
   var lastSig='';
   async function copyExtLink(){
     var A=window.__copaLive; if(!A) return;
@@ -6375,8 +6394,7 @@ void main(){
         if(showLive){
           var b=document.createElement('button'); b.type='button'; b.className='live-btn'+(on?' on':'');
           b.textContent=on?'⏹ En vivo':'📡 En vivo'; b.title=on?'Dejar de seguir':'Seguir este partido desde HaxBall';
-          if(!extOk) b.classList.add('done');
-          b.onclick=function(){ if(!extOk){ toast('Para usar "En vivo" instalá la extensión Copa HaxBall Live y abrí la página desde https://pruebahaxlucas.vercel.app/ (si ya la instalaste, recargá con F5).'); return; } on?stop():start(L.section,key); };
+          b.onclick=function(){ on?stop():start(L.section,key); };
           ui.appendChild(b);
         }
         if(host){
