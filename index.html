@@ -6293,5 +6293,65 @@ void main(){
   setInterval(function(){ if(!document.hidden){ load(); loadUsers(); } }, POLL_MS);
   document.addEventListener('visibilitychange', function(){ if(!document.hidden){ load(); loadUsers(); } });
 })();
-</script></body>
+</script><style>
+.match{position:relative}
+.live-ui{position:absolute;left:calc(50% + 84px);top:50%;transform:translateY(-50%);display:flex;gap:4px;align-items:center;z-index:2}
+.live-btn,.live-sw{border:1px solid rgba(255,255,255,.25);background:rgba(10,12,15,.6);color:inherit;border-radius:999px;padding:3px 8px;font:600 12px/1.2 inherit;font-family:inherit;cursor:pointer;white-space:nowrap}
+.live-btn.on{background:#e5484d;border-color:#e5484d;color:#fff;animation:livepulse 1.4s infinite}
+.live-btn.done{opacity:.6}
+@keyframes livepulse{50%{box-shadow:0 0 0 4px rgba(229,72,77,.3)}}
+@media (max-width:560px){.live-ui{position:static;transform:none;grid-column:1/-1;justify-content:center;margin-top:4px}}
+</style>
+<script>
+(function(){
+  var LISTS=[{id:'fixturesList',section:'liga'},{id:'posFixturesList',section:'pos'}];
+  var extOk=false, live=null; // live={section,key,redIsA}
+  function post(type){ window.postMessage({copaPage:true,type:type},'*'); }
+  function toast(m){ var t=document.getElementById('toast'); if(!t) return; t.textContent=m; t.classList.add('show'); clearTimeout(toast.t); toast.t=setTimeout(function(){t.classList.remove('show');},3500); }
+  window.addEventListener('message',function(e){
+    var d=e.data; if(e.source!==window||!d||d.copaExt!==true) return;
+    if(d.type==='pong'){ extOk=true; paint(); }
+    else if(d.type==='score'&&live) applyScore(d.red,d.blue);
+    else if(d.type==='ended'&&live){ applyScore(d.red,d.blue); toast('🏁 Partido terminado, resultado guardado'); stop(false); }
+  });
+  function box(section,key,side){ var L=LISTS.filter(function(l){return l.section===section;})[0]; var c=document.getElementById(L.id); return c&&c.querySelector('.score-box[data-key="'+key+'"][data-side="'+side+'"]'); }
+  function applyScore(red,blue){
+    if(red==null||blue==null) return;
+    var a=live.redIsA?red:blue, b=live.redIsA?blue:red;
+    [['a',a],['b',b]].forEach(function(p){ var bx=box(live.section,live.key,p[0]); if(bx&&bx.value!==String(p[1])){ bx.value=p[1]; bx.dispatchEvent(new Event('input',{bubbles:true})); } });
+  }
+  function start(section,key){
+    if(live) stop(false);
+    live={section:section,key:key,redIsA:true}; post('start'); toast('📡 Siguiendo el partido en HaxBall (rojo = equipo de la izquierda)'); paint();
+  }
+  function stop(send){ if(send!==false) post('stop'); live=null; paint(); }
+  function paint(){
+    LISTS.forEach(function(L){
+      var c=document.getElementById(L.id); if(!c) return;
+      c.querySelectorAll('.match').forEach(function(m){
+        var inp=m.querySelector('.score-box'); if(!inp) return;
+        var key=inp.dataset.key, ui=m.querySelector('.live-ui');
+        var editable=!inp.readOnly;
+        if(!extOk||!editable){ if(ui) ui.remove(); return; }
+        var on=live&&live.section===L.section&&live.key===key;
+        var sig=on?'on'+live.redIsA:'off';
+        if(ui&&ui.dataset.sig===sig) return;
+        if(ui) ui.remove();
+        ui=document.createElement('div'); ui.className='live-ui'; ui.dataset.sig=sig;
+        var b=document.createElement('button'); b.type='button'; b.className='live-btn'+(on?' on':'');
+        b.textContent=on?'⏹ En vivo':'📡 En vivo'; b.title=on?'Dejar de seguir':'Seguir este partido desde HaxBall';
+        b.onclick=function(){ on?stop():start(L.section,key); };
+        ui.appendChild(b);
+        if(on){ var s=document.createElement('button'); s.type='button'; s.className='live-sw'; s.textContent=live.redIsA?'🔴 izq':'🔴 der'; s.title='Cambiar de lado el equipo rojo';
+          s.onclick=function(){ live.redIsA=!live.redIsA; paint(); }; ui.appendChild(s); }
+        m.appendChild(ui);
+      });
+    });
+  }
+  LISTS.forEach(function(L){ var c=document.getElementById(L.id); if(c) new MutationObserver(function(){ paint(); }).observe(c,{childList:true,subtree:true}); });
+  post('ping'); setInterval(function(){ if(!document.hidden) post('ping'); },4000);
+  setTimeout(paint,500);
+})();
+</script>
+</body>
 </html>
