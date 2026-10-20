@@ -6387,7 +6387,7 @@ void main(){
     });
   }
   LISTS.forEach(function(L){ var c=document.getElementById(L.id); if(c) new MutationObserver(function(){ paint(); }).observe(c,{childList:true,subtree:true}); });
-  post('ping'); setInterval(function(){ if(!document.hidden) post('ping'); },4000); setInterval(pushList,1500);
+  post('ping'); [400,1200,2500].forEach(function(t){ setTimeout(function(){ if(!extOk) post('ping'); },t); }); setInterval(function(){ post('ping'); },4000); setInterval(pushList,1500);
   setTimeout(paint,500);
 })();
 </script>
