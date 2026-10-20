@@ -6322,7 +6322,7 @@ void main(){
   }
   function start(section,key){
     if(live) stop(false);
-    live={section:section,key:key,redIsA:true}; post('start'); toast('📡 Siguiendo el partido en HaxBall (rojo = equipo de la izquierda)'); paint();
+    live={section:section,key:key,redIsA:true}; post('start'); toast('📡 Siguiendo el partido en HaxBall'); paint();
   }
   function stop(send){ if(send!==false) post('stop'); live=null; paint(); }
   function paint(){
@@ -6342,8 +6342,7 @@ void main(){
         b.textContent=on?'⏹ En vivo':'📡 En vivo'; b.title=on?'Dejar de seguir':'Seguir este partido desde HaxBall';
         b.onclick=function(){ on?stop():start(L.section,key); };
         ui.appendChild(b);
-        if(on){ var s=document.createElement('button'); s.type='button'; s.className='live-sw'; s.textContent=live.redIsA?'🔴 izq':'🔴 der'; s.title='Cambiar de lado el equipo rojo';
-          s.onclick=function(){ live.redIsA=!live.redIsA; paint(); }; ui.appendChild(s); }
+
         m.appendChild(ui);
       });
     });
