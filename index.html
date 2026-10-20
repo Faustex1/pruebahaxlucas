@@ -6312,7 +6312,7 @@ void main(){
 (function(){
   var LISTS=[{id:'fixturesList',section:'liga'},{id:'posFixturesList',section:'pos'}];
   var NTFY='https://ntfy.sh/copa-lucaspazo27-live-k7q4x9m2vh8d';
-  var extOk=false, live=null, es=null, liveAt=0, cand=null, candT=null; // live={section,key,redIsA}
+  var extOk=false, live=null, es=null, liveAt=0, cand=null, candT=null, sawPlaying=false, lastMsgAt=0, lastSt='', lastR=null, lastB=null; // live={section,key,redIsA}
   function post(type){ window.postMessage({copaPage:true,type:type},'*'); }
   function toast(m){ var t=document.getElementById('toast'); if(!t) return; t.textContent=m; t.classList.add('show'); clearTimeout(toast.t); toast.t=setTimeout(function(){t.classList.remove('show');},3500); }
   window.addEventListener('message',function(e){
@@ -6321,7 +6321,7 @@ void main(){
     else if(d.type==='cmd-start'){ if(d.section&&d.key) start(d.section,d.key); }
     else if(d.type==='cmd-stop'){ if(live) stop(); }
     else if(d.type==='score'&&live) applyScore(d.red,d.blue);
-    else if(d.type==='ended'&&live){ applyScore(d.red,d.blue); toast('🏁 Partido terminado, resultado guardado'); stop(); }
+    else if(d.type==='ended'&&live){ if(d.red!=null){ lastR=d.red; lastB=d.blue; } finish(); }
   });
   function box(section,key,side){ var L=LISTS.filter(function(l){return l.section===section;})[0]; var c=document.getElementById(L.id); return c&&c.querySelector('.score-box[data-key="'+key+'"][data-side="'+side+'"]'); }
   function applyScore(red,blue){
@@ -6336,11 +6336,25 @@ void main(){
     var tm=(m.time||0)*1000;
     if(tm<liveAt-2000){                      // mensaje anterior a que apretaras "En vivo": solo vale si la partida sigue en juego
       if(d.status==='playing') cand=d; else cand=null;
-      clearTimeout(candT); candT=setTimeout(function(){ if(cand&&live) applyScore(cand.red,cand.blue); cand=null; },1200);
+      clearTimeout(candT); candT=setTimeout(function(){ if(cand&&live) gotMsg(cand); cand=null; },1200);
       return;
     }
-    if(d.status==='playing') applyScore(d.red,d.blue);
-    else if(d.status==='ended'){ applyScore(d.red,d.blue); toast('🏁 Partido terminado, resultado guardado'); stop(); }
+    gotMsg(d);
+  }
+  function gotMsg(d){
+    lastMsgAt=Date.now(); lastSt=d.status;
+    if(d.status==='playing'){ sawPlaying=true; lastR=d.red; lastB=d.blue; applyScore(d.red,d.blue); }
+    else if(d.status==='ended'){ if(d.red!=null){ lastR=d.red; lastB=d.blue; } finish(); }
+    else if(d.status==='room'&&sawPlaying){ finish(); }   // volvió a la sala sin partida: terminó
+  }
+  function finish(){
+    if(!live) return;
+    applyScore(lastR,lastB); toast('🏁 Partido terminado, resultado guardado'); stop();
+  }
+  function liveTxt(){
+    if(!lastMsgAt) return 'esperando HaxBall…';
+    if(lastSt==='playing') return '🔴 '+lastR+' – '+lastB+' 🔵';
+    return 'HaxBall sin partida';
   }
   function openRemote(){
     closeRemote();
@@ -6349,10 +6363,11 @@ void main(){
   function closeRemote(){ if(es){ try{ es.close(); }catch(e){} es=null; } clearTimeout(candT); cand=null; }
   function start(section,key){
     if(live) stop();
-    live={section:section,key:key,redIsA:true}; liveAt=Date.now(); openRemote(); post('start'); toast('📡 Esperando el marcador de HaxBall…'); paint();
+    live={section:section,key:key,redIsA:true}; liveAt=Date.now(); sawPlaying=false; lastMsgAt=0; lastSt=''; lastR=lastB=null; openRemote(); post('start'); toast('📡 Esperando el marcador de HaxBall…'); paint();
   }
   function stop(){ post('stop'); closeRemote(); live=null; paint(); }
   var lastSig='';
+  setInterval(function(){ if(live&&sawPlaying&&Date.now()-lastMsgAt>90000) finish(); },5000);   // sin señal 90 s: se da por terminado
   async function copyExtLink(){
     var A=window.__copaLive; if(!A) return;
     var l=A.link();
@@ -6391,13 +6406,13 @@ void main(){
         var showLive=editable&&key===nextKey;
         if(!showLive){ if(ui) ui.remove(); return; }
         var on=!!(live&&live.section===L.section&&live.key===key);
-        var sig=(showLive?'v':'-')+(on?'on':'off')+(host?'h':'-')+(extOk?'e':'x');
+        var lt=on?liveTxt():''; var sig=(showLive?'v':'-')+(on?'on':'off')+(host?'h':'-')+(extOk?'e':'x')+lt;
         if(ui&&ui.dataset.sig===sig) return;
         if(ui) ui.remove();
         ui=document.createElement('div'); ui.className='live-ui'; ui.dataset.sig=sig;
         if(showLive){
           var b=document.createElement('button'); b.type='button'; b.className='live-btn'+(on?' on':'');
-          b.textContent=on?'⏹ En vivo':'📡 En vivo'; b.title=on?'Dejar de seguir':'Seguir este partido desde HaxBall';
+          b.textContent=on?('⏹ En vivo · '+lt):'📡 En vivo'; b.title=on?'Dejar de seguir':'Seguir este partido desde HaxBall';
           b.onclick=function(){ on?stop():start(L.section,key); };
           ui.appendChild(b);
         }
