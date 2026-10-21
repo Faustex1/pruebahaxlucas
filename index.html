@@ -2722,7 +2722,7 @@
     else base = (LS.get('copa_base') || '').trim().split('#')[0];
     return base ? base + '#sala=' + hostId : '';
   }
-  window.__copaLive = { isGuest, link(){ const l = buildLink(); return l ? l + '&ext=1' : ''; }, copy: copyText, startHosting(){ return startHosting(); } };
+  window.__copaLive = { isGuest, link(){ const l = buildLink(); return l ? l + '&ext=1' : ''; }, copy: copyText, startHosting(){ return startHosting(); }, loadPeer: loadPeerJs };
   function buildObsLink(vista){
     if(!hostId) return '';
     let dir;
@@ -6316,6 +6316,7 @@ void main(){
 (function(){
   var LISTS=[{id:'fixturesList',section:'liga'},{id:'posFixturesList',section:'pos'}];
   var NTFY='https://ntfy.sh/copa-lucaspazo27-live-k7q4x9m2vh8d';
+  var P2P_ID='copa-lucaspazo27-sala-k7q4x9m2vh8d', peer=null, pconn=null, p2pOpen=false, p2pTimer=null;
   var extOk=false, live=null, es=null, liveAt=0, cand=null, candT=null, esOpen=false, replayUntil=0, sawPlaying=false, playAt=0, lastMsgAt=0, lastSt='', lastR=null, lastB=null; // live={section,key,redIsA}
   function post(type){ window.postMessage({copaPage:true,type:type},'*'); }
   function toast(m){ var t=document.getElementById('toast'); if(!t) return; t.textContent=m; t.classList.add('show'); clearTimeout(toast.t); toast.t=setTimeout(function(){t.classList.remove('show');},3500); }
@@ -6355,7 +6356,7 @@ void main(){
     if(d.status==='playing'){
       var st=Date.now()-(d.el||0); if(!sawPlaying||d.el!=null) playAt=st;
       sawPlaying=true; lastR=d.red; lastB=d.blue; applyScore(d.red,d.blue);
-    }else if(d.status==='ended'||d.status==='room'){
+    }else if(d.status==='ended'||d.status==='room'||d.status==='idle'){
       if(!sawPlaying) return;
       if(d.red!=null){ lastR=d.red; lastB=d.blue; }
       var el=(d.status==='ended'&&d.el!=null)?d.el:elapsed();
@@ -6368,22 +6369,58 @@ void main(){
     applyScore(lastR,lastB); toast('🏁 Partido terminado, resultado guardado'); stop();
   }
   function liveTxt(){
-    if(!lastMsgAt) return esOpen ? 'esperando HaxBall…' : 'conectando…';
+    if(!lastMsgAt) return (esOpen||p2pOpen) ? 'esperando HaxBall…' : 'conectando…';
     if(lastSt==='playing') return '🔴 '+lastR+' – '+lastB+' 🔵';
+    if(lastSt==='idle') return 'sala conectada, esperando partida';
     return 'HaxBall sin partida';
   }
   function openRemote(){
     closeRemote();
     esOpen=false; try{ es=new EventSource(NTFY+'/sse?since=90s'); es.onopen=function(){ esOpen=true; replayUntil=Date.now()+2000; paint(); }; es.onerror=function(){ esOpen=(es&&es.readyState===1); }; es.onmessage=onRemote; }catch(e){ es=null; }
   }
-  function closeRemote(){ if(es){ try{ es.close(); }catch(e){} es=null; } clearTimeout(candT); cand=null; }
+  function closeRemote(){ if(es){ try{ es.close(); }catch(e){} es=null; } clearTimeout(candT); cand=null; closeP2P(); }
+  /* Canal directo con la sala (sin intermediarios ni límites): la página se conecta a la sala por WebRTC (PeerJS) */
+  function onP2PData(d){
+    if(typeof d==='string'){ try{ d=JSON.parse(d); }catch(e){ return; } }
+    if(!d||d.copa!==1||!live) return;
+    clearTimeout(candT); cand=null;
+    gotMsg(d);
+  }
+  function p2pRetry(){ clearTimeout(p2pTimer); p2pTimer=setTimeout(function(){ if(live) connectP2P(); },3000); }
+  function connectP2P(){
+    if(!peer||peer.destroyed||!peer.open||!live) return;
+    try{ if(pconn) pconn.close(); }catch(e){}
+    p2pOpen=false;
+    var c=peer.connect(P2P_ID,{reliable:true,serialization:'json'}); pconn=c;
+    c.on('open',function(){ if(pconn!==c) return; p2pOpen=true; paint(); });
+    c.on('data',function(d){ if(pconn===c) onP2PData(d); });
+    c.on('close',function(){ if(pconn!==c) return; p2pOpen=false; paint(); p2pRetry(); });
+    c.on('error',function(){ if(pconn!==c) return; p2pOpen=false; p2pRetry(); });
+  }
+  function openP2P(){
+    closeP2P();
+    var A=window.__copaLive; if(!A||!A.loadPeer) return;
+    A.loadPeer().then(function(P){
+      if(!live||peer) return;
+      var pr; try{ pr=new P(undefined,window.COPA_PEER_OPTS||{}); }catch(e){ return; }
+      peer=pr;
+      pr.on('open',connectP2P);
+      pr.on('disconnected',function(){ try{ if(!pr.destroyed) pr.reconnect(); }catch(e){} });
+      pr.on('error',function(err){ p2pOpen=false; if(err&&(err.type==='peer-unavailable'||err.type==='network'||err.type==='server-error'||err.type==='socket-error')) p2pRetry(); });
+    },function(){});
+  }
+  function closeP2P(){
+    clearTimeout(p2pTimer); p2pOpen=false;
+    try{ if(pconn) pconn.close(); }catch(e){} pconn=null;
+    try{ if(peer) peer.destroy(); }catch(e){} peer=null;
+  }
   function start(section,key){
     if(live) stop();
-    live={section:section,key:key,redIsA:true}; var ba=box(section,key,'a'), bb=box(section,key,'b'); initScore={a:ba?ba.value:'',b:bb?bb.value:''}; liveAt=Date.now(); sawPlaying=false; playAt=0; lastMsgAt=0; lastSt=''; lastR=lastB=null; openRemote(); post('start'); toast('📡 Esperando el marcador de HaxBall…'); paint();
+    live={section:section,key:key,redIsA:true}; var ba=box(section,key,'a'), bb=box(section,key,'b'); initScore={a:ba?ba.value:'',b:bb?bb.value:''}; liveAt=Date.now(); sawPlaying=false; playAt=0; lastMsgAt=0; lastSt=''; lastR=lastB=null; openRemote(); openP2P(); post('start'); toast('📡 Esperando el marcador de HaxBall…'); paint();
   }
   function stop(){ post('stop'); closeRemote(); live=null; paint(); }
   var lastSig='';
-  setInterval(function(){ var n=Date.now(); if(live&&sawPlaying&&playAt&&n-playAt>=MIN_MS&&n-lastMsgAt>75000) finish(); },1000);   // pasó 1:59 de partido y se corta la señal: terminó, se pasa al siguiente enseguida
+  setInterval(function(){ var n=Date.now(); if(live&&sawPlaying&&playAt&&n-playAt>=MIN_MS&&n-lastMsgAt>(p2pOpen?20000:75000)) finish(); },1000);   // pasó 1:59 de partido y se corta la señal: terminó, se pasa al siguiente enseguida
   function pushList(){
     if(!extOk) return;
     var out=[];
